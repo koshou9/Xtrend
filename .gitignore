@@ -1,0 +1,25 @@
+node_modules/
+.wxt/
+.output/
+.firecrawl/
+test-results/
+dist-preview/
+*.local
+
+.DS_Store
+.codegraph/
+release/
+__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.example
+
+# Local working reports; keep product and developer documentation.
+docs/*
+!docs/ARCHITECTURE.md
+!docs/VERIFICATION.md
+!docs/架构说明.md
+CHROMEWEBSTORE.md
+AGENTS.md
+CLAUDE.md

@@ -1,0 +1,45 @@
+/* A native action popup needs an intrinsic size before React or storage loads.
+   Viewport caps here feed its initially tiny viewport back into autosizing. */
+html.xt-popup-document,
+.xt-popup-document body {
+  width: 440px;
+  height: 560px;
+  margin: 0;
+  padding: 0;
+}
+.xt-popup-document #root {
+  width: 100%;
+  height: 100%;
+  padding: 6px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+.xt-popup-document .xt-extension-hub {
+  flex: 1;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  max-width: none;
+  max-height: none;
+  border-radius: 20px;
+}
+.xt-popup-document .xt-popup-loading {
+  width: 100%;
+  flex: 1;
+  padding: 18px;
+  border-radius: 20px;
+  background: var(--paper);
+}
+.xt-popup-document #root > [role="alert"] {
+  margin: 0;
+  padding: 8px 14px;
+}
+/* Preserve intrinsic sizing at startup, but fit a genuinely narrow browser window. */
+@media (min-width: 100px) and (max-width: 439px) {
+  html.xt-popup-document,
+  .xt-popup-document body {
+    width: 100vw;
+    height: min(560px, 100dvh);
+  }
+}

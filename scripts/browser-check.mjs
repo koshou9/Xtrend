@@ -38,6 +38,7 @@ const makeTweet = (suffix = 0, views = 48000) => ({
         legacy: {
           name: `Fixture Author ${suffix + 1}`,
           screen_name: `fixture_${suffix}`,
+          profile_image_url_https: `https://pbs.twimg.com/profile_images/author_${suffix}/current.jpg`,
         },
       },
     },
@@ -114,6 +115,7 @@ try {
   let renderedGrok = false;
   let xhrGrok = false;
   let classicGrok = false;
+  let avatarVersion = 1;
   await context.route("**/*", async (route) => {
     const request = route.request(),
       url = new URL(request.url());
@@ -128,9 +130,18 @@ try {
       method: request.method(),
       variables: url.searchParams.get("variables"),
     });
+    if (
+      url.hostname === "pbs.twimg.com" &&
+      url.pathname.includes("broken_avatar")
+    )
+      return route.fulfill({ status: 404, body: "" });
     if (url.hostname === "pbs.twimg.com")
       return route.fulfill({
-        status: url.searchParams.get("name") === "4096x4096" ? 404 : 200,
+        status:
+          url.searchParams.get("name") === "4096x4096" ||
+          url.pathname.includes("broken_avatar")
+            ? 404
+            : 200,
         contentType: "image/jpeg",
         body: image,
       });
@@ -242,9 +253,21 @@ try {
             users: Array.from({ length: 6 }, (_, i) => ({
               __typename: "User",
               rest_id: String(7001 + i),
+              ...(i > 0 && i < 5
+                ? {
+                    avatar: {
+                      image_url: `https://pbs.twimg.com/profile_images/${avatarVersion}/${i === 2 ? "broken_avatar" : `reader_${i}`}.jpg`,
+                    },
+                  }
+                : {}),
               legacy: {
                 name: `Reader ${i + 1}`,
                 screen_name: `reader_fixture_${i}`,
+                ...(i === 0
+                  ? {
+                      profile_image_url_https: `https://pbs.twimg.com/profile_images/${avatarVersion}/reader_0.jpg`,
+                    }
+                  : {}),
               },
             })),
             cursor: {
@@ -462,6 +485,18 @@ try {
         .click();
       await workspace.locator(".xt-node").first().waitFor();
       assert.equal(await workspace.locator(".xt-node").count(), 6);
+      const authorAvatar = workspace.locator(".xt-star-context .xt-avatar");
+      assert.equal(
+        await authorAvatar.getAttribute("href"),
+        "https://x.com/fixture_0",
+      );
+      await authorAvatar.locator("img").waitFor();
+      await page.waitForFunction(() => {
+        const img = document
+          .querySelector("#xtrend-workspace")
+          .shadowRoot.querySelector(".xt-star-context .xt-avatar img");
+        return img?.complete && img.naturalWidth > 0;
+      });
       const points = await workspace
         .locator(".xt-node circle")
         .evaluateAll((nodes) =>
@@ -664,6 +699,87 @@ try {
         .at(-1);
       assert.equal(JSON.parse(request.variables).tweetId, id);
       assert.equal(JSON.parse(request.variables).cursor, "fixture-page-2");
+      await workspace
+        .getByRole("button", { name: "Close", exact: true })
+        .click();
+    },
+  );
+  await check(
+    "people show current avatars, open profiles and retain map selection with safe image fallbacks",
+    async () => {
+      const openPeople = async () => {
+        await page
+          .locator("article")
+          .first()
+          .getByRole("button", { name: "Thank-You star map", exact: true })
+          .click();
+        await workspace
+          .getByRole("button", { name: "People", exact: true })
+          .click();
+      };
+      const first = workspace.locator('[data-relation="r:7001"]');
+      const expectAvatar = async (version) => {
+        await page.waitForFunction((version) => {
+          const img = document
+            .querySelector("#xtrend-workspace")
+            .shadowRoot.querySelector(
+              '.xt-person a[href="https://x.com/reader_fixture_0"] img',
+            );
+          return (
+            img?.getAttribute("src") ===
+              `https://pbs.twimg.com/profile_images/${version}/reader_0.jpg` &&
+            img.complete &&
+            img.naturalWidth > 0
+          );
+        }, version);
+      };
+      await openPeople();
+      await expectAvatar(1);
+      const avatar = first.getByRole("link", {
+        name: "Open profile @reader_fixture_0",
+        exact: true,
+      });
+      const [profile] = await Promise.all([
+        context.waitForEvent("page"),
+        avatar.click(),
+      ]);
+      await profile.waitForLoadState();
+      assert.equal(profile.url(), "https://x.com/reader_fixture_0");
+      await profile.close();
+      assert.equal(
+        await workspace.locator(".xt-people-list").isVisible(),
+        true,
+      );
+      const broken = workspace.locator('[data-relation="r:7003"]');
+      await broken.locator(".xt-avatar img").waitFor({ state: "detached" });
+      assert.equal(await broken.locator(".xt-avatar").innerText(), "R");
+      const missing = workspace.locator('[data-relation="r:7006"]');
+      assert.equal(await missing.locator(".xt-avatar img").count(), 0);
+      assert.equal(
+        await missing.locator(".xt-avatar").getAttribute("href"),
+        "https://x.com/reader_fixture_5",
+      );
+      await first
+        .getByRole("button", { name: "Star map Reader 1", exact: true })
+        .click();
+      assert.equal(await workspace.locator(".xt-node.selected").count(), 1);
+      await workspace
+        .getByRole("button", { name: "People", exact: true })
+        .click();
+      avatarVersion = 2;
+      await workspace
+        .getByRole("button", { name: "Refresh", exact: true })
+        .click();
+      await expectAvatar(2);
+      await workspace
+        .getByRole("button", { name: "Close", exact: true })
+        .click();
+      avatarVersion = 3;
+      await openPeople();
+      await expectAvatar(3);
+      await workspace.screenshot({
+        path: join(output, "star-map-profile-avatars.png"),
+      });
       await workspace
         .getByRole("button", { name: "Close", exact: true })
         .click();

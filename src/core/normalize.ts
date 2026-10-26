@@ -1,4 +1,5 @@
 import type { Author, Tweet, Relation, GraphPage } from "./types";
+import { profileImageURL } from "./images";
 type Obj = Record<string, any>;
 const obj = (v: unknown): v is Obj =>
   !!v && typeof v === "object" && !Array.isArray(v);
@@ -33,8 +34,19 @@ export function normalizeAuthor(value: unknown): Author | null {
   const legacy = value.legacy ?? value;
   const handle = str(legacy.screen_name ?? value.core?.screen_name, 50);
   const id = str(value.rest_id ?? legacy.id_str, 40);
+  const avatar = profileImageURL(
+    value.avatar?.image_url ??
+      legacy.profile_image_url_https ??
+      value.profile_image_url ??
+      value.profile_image_url_https,
+  );
   return /^\w{1,50}$/.test(handle) && /^\d+$/.test(id)
-    ? { id, handle, name: str(legacy.name ?? value.core?.name, 200) || handle }
+    ? {
+        id,
+        handle,
+        name: str(legacy.name ?? value.core?.name, 200) || handle,
+        ...(avatar ? { avatar } : {}),
+      }
     : null;
 }
 export function normalizeTweet(value: unknown, now = Date.now()): Tweet | null {

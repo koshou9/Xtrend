@@ -12,6 +12,7 @@ export interface Author {
   id: string;
   name: string;
   handle: string;
+  avatar?: string;
 }
 export interface Tweet {
   id: string;

@@ -1,4 +1,4 @@
-# Xtrend 0.3.1 architecture
+# Xtrend 0.3.3 architecture
 
 The existing page observer / isolated workspace / core logic / React UI / browser background layers remain. There is no hosted backend, telemetry or remote rule service.
 

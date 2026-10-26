@@ -101,6 +101,7 @@ export interface LibraryPort {
   list(): Promise<SavedPost[]>;
   save(value: SavedPost): Promise<void>;
   remove(id: string): Promise<void>;
+  restore?(entries: SavedPost[]): Promise<void>;
   watch?(changed: () => void): () => void;
 }
 export const LIBRARY_KEY = "saved-posts:v1";
@@ -114,6 +115,7 @@ export function cleanSavedPost(value: unknown): SavedPost | null {
     typeof v.note !== "string" ||
     v.note.length > 2000 ||
     !Number.isFinite(v.savedAt) ||
+    !Number.isFinite(new Date(v.savedAt).getTime()) ||
     v.savedAt < 0 ||
     !Array.isArray(v.tags) ||
     v.tags.length > 10 ||
@@ -126,6 +128,29 @@ export function cleanSavedPost(value: unknown): SavedPost | null {
     tags: [...new Set(v.tags.map((t) => t.trim()).filter(Boolean))],
     savedAt: v.savedAt,
   };
+}
+function savedBatch(value: unknown): SavedPost[] {
+  if (!Array.isArray(value) || value.length > 100)
+    throw new Error("invalidLibrary");
+  const entries = value.map(cleanSavedPost);
+  if (
+    entries.some((e) => !e) ||
+    new Set(entries.map((e) => e?.tweet.id)).size !== entries.length
+  )
+    throw new Error("invalidLibrary");
+  return entries as SavedPost[];
+}
+export function readSavedPosts(text: string): SavedPost[] {
+  if (new TextEncoder().encode(text).length > 3 * 1024 * 1024)
+    throw new Error("invalidLibrary");
+  try {
+    const data = JSON.parse(text.replace(/^\uFEFF/, ""));
+    if (data?.format !== "xtrend-saved-posts" || data.version !== 1)
+      throw new Error("invalidLibrary");
+    return savedBatch(data.entries);
+  } catch {
+    throw new Error("invalidLibrary");
+  }
 }
 export class SavedLibrary {
   private queue = Promise.resolve();
@@ -157,6 +182,18 @@ export class SavedLibrary {
       clean,
       ...entries.filter((e) => e.tweet.id !== clean.tweet.id),
     ]);
+  }
+  restore(value: unknown) {
+    let imported: SavedPost[];
+    try {
+      imported = savedBatch(value);
+    } catch (error) {
+      return Promise.reject(error);
+    }
+    return this.update((entries) => {
+      const existing = new Set(entries.map((e) => e.tweet.id));
+      return [...imported.filter((e) => !existing.has(e.tweet.id)), ...entries];
+    });
   }
   remove(id: string) {
     if (!/^\d{1,30}$/.test(id))

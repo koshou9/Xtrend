@@ -6,6 +6,7 @@ import {
   readingPresets,
   searchPosts,
   LIBRARY_KEY,
+  readSavedPosts,
 } from "../src/core/research";
 import { defaultSettings } from "../src/core/settings";
 import { MonitorEngine, repeatHit } from "../src/core/monitor";
@@ -39,6 +40,81 @@ function storage() {
     },
   };
 }
+describe("saved-post restore", () => {
+  const entry = {
+    tweet,
+    tags: ["research"],
+    note: "Keep this note",
+    savedAt: at,
+  };
+  const file = (entries: unknown[]) =>
+    JSON.stringify({ format: "xtrend-saved-posts", version: 1, entries });
+  it("reads an exported library and validates every entry before restoring", () => {
+    expect(readSavedPosts("\uFEFF" + file([entry]))[0]?.note).toBe(entry.note);
+    for (const text of [
+      "not JSON",
+      "{}",
+      file([entry, { ...entry, note: 5 }]),
+      file([entry, entry]),
+      file([{ ...entry, savedAt: 9e15 }]),
+      "x".repeat(3 * 1024 * 1024 + 1),
+    ])
+      expect(() => readSavedPosts(text)).toThrow("invalidLibrary");
+  });
+  it("merges atomically, preserves existing edits and does not duplicate posts", async () => {
+    const port = storage(),
+      library = new SavedLibrary(port);
+    await library.save(entry);
+    await library.restore([
+      { ...entry, note: "Old backup" },
+      { ...entry, tweet: { ...tweet, id: "200" }, note: "Imported" },
+    ]);
+    const saved = await library.list();
+    expect(saved).toHaveLength(2);
+    expect(saved.find((e) => e.tweet.id === "100")?.note).toBe(entry.note);
+    expect(saved.find((e) => e.tweet.id === "200")?.note).toBe("Imported");
+    await expect(
+      library.restore([entry, { ...entry, note: null }]),
+    ).rejects.toThrow("invalidLibrary");
+    expect(await library.list()).toEqual(saved);
+  });
+  it("rejects a merge exceeding count or byte limits without a partial import", async () => {
+    const port = storage(),
+      library = new SavedLibrary(port);
+    await library.restore(
+      Array.from({ length: 100 }, (_, i) => ({
+        ...entry,
+        tweet: { ...tweet, id: String(i + 1) },
+      })),
+    );
+    const before = await port.get(LIBRARY_KEY);
+    await expect(
+      library.restore([{ ...entry, tweet: { ...tweet, id: "999" } }]),
+    ).rejects.toThrow("libraryFull");
+    expect(await port.get(LIBRARY_KEY)).toEqual(before);
+    const second = new SavedLibrary(storage());
+    await expect(
+      second.restore(
+        Array.from({ length: 30 }, (_, i) => ({
+          ...entry,
+          tweet: { ...tweet, id: String(i + 1), text: "x".repeat(100000) },
+        })),
+      ),
+    ).rejects.toThrow("libraryFull");
+    expect(await second.list()).toEqual([]);
+  });
+  it("keeps a concurrent save while merging an imported library", async () => {
+    const library = new SavedLibrary(storage());
+    await Promise.all([
+      library.restore([entry]),
+      library.save({ ...entry, tweet: { ...tweet, id: "200" } }),
+    ]);
+    expect((await library.list()).map((e) => e.tweet.id).sort()).toEqual([
+      "100",
+      "200",
+    ]);
+  });
+});
 describe("reading improvements", () => {
   it("searches loaded posts by text, author and local publication date without treating missing dates as known", () => {
     const posts = [

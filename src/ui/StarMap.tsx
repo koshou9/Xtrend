@@ -11,10 +11,37 @@ import {
   Users,
 } from "lucide-react";
 import { mergeRelations, relationKey } from "../core/cache";
-import type { GraphPage, Relation, Tweet } from "../core/types";
+import type { Author, GraphPage, Relation, Tweet } from "../core/types";
 import type { Workspace } from "../content/model";
 import { translator, errorText } from "./i18n";
 import { Dialog, External, useWorkspace } from "./shared";
+function ProfileAvatar({ author, label }: { author: Author; label: string }) {
+  const [failed, setFailed] = useState<string>();
+  return (
+    <a
+      className="xt-avatar"
+      href={`https://x.com/${author.handle}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={`${label} @${author.handle}`}
+    >
+      {author.avatar && author.avatar !== failed ? (
+        <img
+          key={author.avatar}
+          src={author.avatar}
+          alt=""
+          width={35}
+          height={35}
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          onError={() => setFailed(author.avatar)}
+        />
+      ) : (
+        [...(author.name || author.handle)][0]
+      )}
+    </a>
+  );
+}
 export function StarMap({ model, tweet }: { model: Workspace; tweet: Tweet }) {
   const state = useWorkspace(model),
     t = translator(state.settings.language);
@@ -91,8 +118,7 @@ export function StarMap({ model, tweet }: { model: Workspace; tweet: Tweet }) {
       );
       if (!active) return;
       setPages(Object.fromEntries(entries.filter(([, page]) => page)));
-      if (!entries.find(([k, page]) => k === "repost" && page))
-        void loadRef.current(false, "repost");
+      void loadRef.current(true, "repost");
     })().catch(() => {
       if (active) setError(t("storageFailed"));
     });
@@ -105,6 +131,14 @@ export function StarMap({ model, tweet }: { model: Workspace; tweet: Tweet }) {
     pages.repost?.relations ?? [],
     pages.quote?.relations ?? [],
   );
+  const author =
+    all.find(
+      (r) =>
+        r.author.handle.toLowerCase() === tweet.author.handle.toLowerCase() &&
+        r.author.avatar,
+    )?.author ??
+    model.get(tweet.id)?.author ??
+    tweet.author;
   const filtered = all.filter(
     (r) =>
       (filter === "all" || filter === r.kind) &&
@@ -126,7 +160,7 @@ export function StarMap({ model, tweet }: { model: Workspace; tweet: Tweet }) {
     setView(nextView);
     if (nextView === "river" && kind !== "quote") {
       setKind("quote");
-      if (!pages.quote) void load(false, "quote");
+      void load(true, "quote");
     }
   };
   useEffect(() => {
@@ -139,7 +173,7 @@ export function StarMap({ model, tweet }: { model: Workspace; tweet: Tweet }) {
   return (
     <Dialog model={model} title={t("star")} subtitle={t("starHint")} wide>
       <div className="xt-star-context">
-        <div className="xt-avatar">{[...tweet.author.name][0]}</div>
+        <ProfileAvatar author={author} label={t("openProfile")} />
         <div>
           <strong>{tweet.author.name}</strong>
           <p>{tweet.text.slice(0, 160)}</p>
@@ -319,19 +353,19 @@ export function StarMap({ model, tweet }: { model: Workspace; tweet: Tweet }) {
                 key={relationKey(r)}
                 className={`xt-person ${selected === relationKey(r) ? "selected" : ""}`}
               >
-                <button
-                  className="xt-avatar"
-                  onClick={() => {
-                    setSelected(relationKey(r));
-                    setView("map");
-                  }}
-                  aria-label={`${t("map")} ${r.author.name}`}
-                >
-                  {[...r.author.name][0]}
-                </button>
-                <div>
-                  <strong>{r.author.name}</strong>
-                  <p>@{r.author.handle}</p>
+                <ProfileAvatar author={r.author} label={t("openProfile")} />
+                <div className="xt-person-details">
+                  <button
+                    className="xt-person-identity"
+                    onClick={() => {
+                      setSelected(relationKey(r));
+                      setView("map");
+                    }}
+                    aria-label={`${t("map")} ${r.author.name}`}
+                  >
+                    <strong>{r.author.name}</strong>
+                    <span className="xt-person-handle">@{r.author.handle}</span>
+                  </button>
                   {r.kind === "quote" && (
                     <p className="xt-person-quote">{r.tweet.text}</p>
                   )}
@@ -406,7 +440,7 @@ export function StarMap({ model, tweet }: { model: Workspace; tweet: Tweet }) {
             if (!e.isTrusted) return;
             const next = e.target.value as typeof kind;
             setKind(next);
-            if (!pages[next]) void load(false, next);
+            void load(true, next);
           }}
         >
           <option value="repost">{t("repost")}</option>

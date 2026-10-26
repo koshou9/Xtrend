@@ -104,6 +104,7 @@ export function Dialog({
   children,
   wide = false,
   className = "",
+  onRequestClose,
 }: {
   model: Workspace;
   title: string;
@@ -111,10 +112,13 @@ export function Dialog({
   children: ReactNode;
   wide?: boolean;
   className?: string;
+  onRequestClose?: () => void;
 }) {
   const state = useWorkspace(model),
     t = translator(state.settings.language);
   const ref = useRef<HTMLDivElement>(null);
+  const close = useRef<() => void>(() => model.open(null));
+  close.current = onRequestClose ?? (() => model.open(null));
   useEntrance(ref);
   useEffect(() => {
     const previous = document.activeElement;
@@ -123,7 +127,7 @@ export function Dialog({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        model.open(null);
+        close.current();
       }
       if (e.key !== "Tab") return;
       const targets = [
@@ -159,7 +163,7 @@ export function Dialog({
     <div
       className="xt-backdrop"
       onPointerDown={(e) => {
-        if (e.target === e.currentTarget) model.open(null);
+        if (e.target === e.currentTarget) close.current();
       }}
     >
       <div
@@ -180,7 +184,7 @@ export function Dialog({
           </div>
           <button
             className="xt-icon"
-            onClick={() => model.open(null)}
+            onClick={() => close.current()}
             aria-label={t("close")}
           >
             <X size={20} />

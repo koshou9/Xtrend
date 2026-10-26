@@ -58,6 +58,7 @@ export const remoteLibrary: LibraryPort = {
   list: () => request({ type: "xtrend:saved-list" }),
   save: (entry) => request({ type: "xtrend:saved-save", entry }),
   remove: (id) => request({ type: "xtrend:saved-remove", id }),
+  restore: (entries) => request({ type: "xtrend:saved-restore", entries }),
   watch(changed) {
     const listener: Parameters<
       typeof browser.storage.onChanged.addListener

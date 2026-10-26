@@ -1,3 +1,23 @@
+export function profileImageURL(value: unknown): string | undefined {
+  if (typeof value !== "string" || value.length > 2048) return;
+  try {
+    const url = new URL(value);
+    if (
+      url.protocol === "https:" &&
+      !url.username &&
+      !url.password &&
+      !url.port &&
+      ((url.hostname === "pbs.twimg.com" &&
+        url.pathname.startsWith("/profile_images/")) ||
+        (url.hostname === "abs.twimg.com" &&
+          url.pathname.startsWith("/sticky/default_profile_images/")))
+    )
+      return url.href;
+  } catch {
+    /* Ignore untrusted image addresses. */
+  }
+}
+
 export function highResolutionCandidates(source: string): string[] {
   try {
     const url = new URL(source);

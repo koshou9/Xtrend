@@ -7,6 +7,7 @@ import type {
   Tweet,
   Relation,
 } from "./types";
+import { profileImageURL } from "./images";
 type Obj = Record<string, any>;
 const object = (v: unknown): v is Obj =>
   !!v && typeof v === "object" && !Array.isArray(v);
@@ -22,10 +23,12 @@ function author(v: unknown): Author | null {
     typeof v.id !== "string"
   )
     return null;
+  const avatar = profileImageURL(v.avatar);
   return {
     id: v.id.slice(0, 80),
     name: v.name.slice(0, 200),
     handle: v.handle,
+    ...(avatar ? { avatar } : {}),
   };
 }
 export function cleanTweet(v: unknown): Tweet | null {

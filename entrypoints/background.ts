@@ -113,6 +113,8 @@ export default defineBackground(() => {
       if (value.type === "xtrend:saved-list") return library.list();
       if (value.type === "xtrend:saved-save") return library.save(value.entry);
       if (value.type === "xtrend:saved-remove") return library.remove(value.id);
+      if (value.type === "xtrend:saved-restore")
+        return library.restore(value.entries);
       if (value.type === "xtrend:settings-update") {
         if (!extension && value.patch && "ai" in value.patch)
           throw new Error("operationFailed");
@@ -227,6 +229,7 @@ export default defineBackground(() => {
               "settingsTooLarge",
               "invalidRequest",
               "libraryFull",
+              "invalidLibrary",
               "invalidPrompt",
               "invalidAiConfig",
               "missingAiKey",

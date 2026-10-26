@@ -96,7 +96,214 @@ export async function runResearchChecks({ check, context, popupURL, output }) {
         await dialog
           .getByRole("button", { name: "Remove", exact: true })
           .click();
-        await dialog.getByText("No matching posts", { exact: true }).waitFor();
+        await dialog
+          .getByRole("button", { name: "Confirm remove", exact: true })
+          .click();
+        await dialog.getByText("No saved posts yet", { exact: true }).waitFor();
+        await dialog
+          .getByRole("button", { name: "Close", exact: true })
+          .click();
+      },
+    );
+    await check(
+      "saved library imports safely, filters and expands posts, protects drafts and fits narrow windows",
+      async () => {
+        const { readFile } = await import("node:fs/promises");
+        const exported = JSON.parse(
+          await readFile(join(output, "saved-posts-export.json"), "utf8"),
+        );
+        const original = exported.entries[0];
+        const long = {
+          ...original,
+          tweet: {
+            ...original.tweet,
+            id: "999000000000000001",
+            text:
+              "A longer saved post with useful details.\n".repeat(60) +
+              "END OF LONG POST",
+            author: {
+              id: "999",
+              name: "Other Author",
+              handle: "other_fixture",
+            },
+          },
+          tags: ["layout", "long-read"],
+          note: "Long research memo",
+          savedAt: original.savedAt + 1,
+        };
+        await workspace
+          .getByRole("button", { name: "Saved posts", exact: true })
+          .click();
+        const dialog = workspace.getByRole("dialog"),
+          cards = dialog.locator(".xt-saved-list > li");
+        const upload = (entries) =>
+          dialog
+            .getByLabel("Import saved posts", { exact: true })
+            .setInputFiles({
+              name: "saved-posts.json",
+              mimeType: "application/json",
+              buffer: Buffer.from(
+                JSON.stringify({
+                  format: "xtrend-saved-posts",
+                  version: 1,
+                  entries,
+                }),
+              ),
+            });
+        await upload([original, long]);
+        await dialog
+          .getByRole("button", { name: "Confirm import", exact: true })
+          .waitFor();
+        assert.equal(await cards.count(), 0);
+        await dialog
+          .getByRole("button", { name: "Confirm import", exact: true })
+          .click();
+        await cards.nth(1).waitFor();
+        for (const term of [
+          "Other Author",
+          "long-read",
+          "Long research memo",
+          "END OF LONG POST",
+        ]) {
+          await dialog
+            .getByLabel("Search saved posts", { exact: true })
+            .fill(term);
+          assert.equal(await cards.count(), 1);
+        }
+        await dialog
+          .getByRole("button", { name: "Clear filters", exact: true })
+          .click();
+        await dialog
+          .getByLabel("Filter by tag", { exact: true })
+          .selectOption("research");
+        assert.equal(await cards.count(), 1);
+        await dialog
+          .getByRole("button", { name: "Clear filters", exact: true })
+          .click();
+        const longCard = dialog.locator('[data-saved-id="999000000000000001"]');
+        await longCard.locator(".xt-saved-full summary").click();
+        assert.match(
+          await longCard.locator(".xt-saved-full p").innerText(),
+          /END OF LONG POST/,
+        );
+        assert.ok(
+          (await longCard.locator(".xt-saved-full p").boundingBox()).height <=
+            222,
+        );
+        await longCard.locator(".xt-saved-full summary").click();
+        const originalCard = dialog.locator(
+          `[data-saved-id="${original.tweet.id}"]`,
+        );
+        await originalCard
+          .getByRole("button", { name: "Edit", exact: true })
+          .click();
+        await dialog
+          .getByLabel("Note", { exact: true })
+          .fill("Unsaved library note");
+        await dialog
+          .getByRole("button", { name: "Close", exact: true })
+          .click();
+        await dialog
+          .getByRole("button", { name: "Keep editing", exact: true })
+          .click();
+        assert.equal(
+          await dialog.getByLabel("Note", { exact: true }).inputValue(),
+          "Unsaved library note",
+        );
+        await dialog
+          .getByLabel("Tags (comma separated)", { exact: true })
+          .fill("x".repeat(31));
+        await dialog.getByRole("button", { name: "Save", exact: true }).click();
+        await dialog
+          .getByRole("alert")
+          .filter({ hasText: "Use up to 10 tags" })
+          .waitFor();
+        await dialog
+          .getByLabel("Tags (comma separated)", { exact: true })
+          .fill("alpha， beta, alpha, ");
+        assert.equal(
+          await dialog
+            .getByLabel("Tags (comma separated)", { exact: true })
+            .inputValue(),
+          "alpha， beta, alpha, ",
+        );
+        await dialog.getByRole("button", { name: "Save", exact: true }).click();
+        await dialog.locator("form").waitFor({ state: "detached" });
+        await originalCard
+          .getByText("Unsaved library note", { exact: true })
+          .waitFor();
+        assert.deepEqual(
+          await originalCard.locator(".xt-saved-tags button").allTextContents(),
+          ["alpha", "beta"],
+        );
+        await originalCard
+          .getByRole("button", { name: "Remove", exact: true })
+          .click();
+        await originalCard
+          .getByRole("button", { name: "Cancel", exact: true })
+          .click();
+        assert.equal(await cards.count(), 2);
+        await upload([
+          { ...original, note: "Old backup" },
+          { ...long, note: "Old backup" },
+        ]);
+        await dialog
+          .getByRole("button", { name: "Confirm import", exact: true })
+          .click();
+        await dialog
+          .getByRole("button", { name: "Confirm import", exact: true })
+          .waitFor({ state: "detached" });
+        assert.equal(await cards.count(), 2);
+        await originalCard
+          .getByText("Unsaved library note", { exact: true })
+          .waitFor();
+        await upload([original, { ...long, note: null }]);
+        await dialog
+          .getByRole("alert")
+          .filter({ hasText: "not a valid saved-posts export" })
+          .waitFor();
+        assert.equal(await cards.count(), 2);
+        await upload([]);
+        await dialog
+          .getByRole("button", { name: "Cancel", exact: true })
+          .click();
+        await popup.goto(popupURL);
+        await popup.locator(".xt-hub-header select").selectOption("zh");
+        await dialog
+          .getByRole("heading", { name: "收藏夹", exact: true })
+          .waitFor();
+        await dialog.screenshot({
+          path: join(output, "saved-library-layout-zh.png"),
+        });
+        await page.setViewportSize({ width: 320, height: 480 });
+        const bounds = await dialog.boundingBox();
+        assert.ok(
+          bounds.x >= 0 &&
+            bounds.x + bounds.width <= 320 &&
+            bounds.y >= 0 &&
+            bounds.y + bounds.height <= 480,
+        );
+        assert.equal(
+          await dialog
+            .locator(".xt-saved-posts")
+            .evaluate((el) => el.scrollWidth > el.clientWidth),
+          false,
+        );
+        await dialog.screenshot({
+          path: join(output, "saved-library-layout-mobile.png"),
+        });
+        await page.setViewportSize({ width: 1440, height: 1000 });
+        await popup.locator(".xt-hub-header select").selectOption("en");
+        for (const id of [original.tweet.id, long.tweet.id]) {
+          const card = dialog.locator(`[data-saved-id="${id}"]`);
+          await card
+            .getByRole("button", { name: "Remove", exact: true })
+            .click();
+          await card
+            .getByRole("button", { name: "Confirm remove", exact: true })
+            .click();
+          await card.waitFor({ state: "detached" });
+        }
         await dialog
           .getByRole("button", { name: "Close", exact: true })
           .click();

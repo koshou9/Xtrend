@@ -1,4 +1,5 @@
 import type { Tweet } from "../core/types";
+import { profileImageURL } from "../core/images";
 export const ARTICLE = 'article[data-testid="tweet"]';
 // A rescan of unchanged page text is not a new view-count observation.
 const viewReadings = new WeakMap<
@@ -44,6 +45,9 @@ export function readArticle(article: Element): Tweet | null {
   const handle =
     profile?.getAttribute("href")?.match(/^\/([A-Za-z0-9_]+)$/)?.[1] ?? "";
   if (!handle) return null;
+  const avatar = profileImageURL(
+    article.querySelector<HTMLImageElement>(`a[href="/${handle}"] img`)?.src,
+  );
   const text =
     article.querySelector('[data-testid="tweetText"]')?.textContent ?? "";
   // An edited post's /history time is its edit time, not its publication time.
@@ -86,6 +90,7 @@ export function readArticle(article: Element): Tweet | null {
       id: `page:${handle}`,
       name: profile?.textContent?.trim() || handle,
       handle,
+      ...(avatar ? { avatar } : {}),
     },
     text,
     createdAt: Number.isFinite(createdAt) ? createdAt : null,

@@ -71,6 +71,7 @@ for (const file of [
   "ARCHITECTURE.md",
   "VERIFICATION.md",
   "架构说明.md",
+  "OPTIMIZATION-0.3.0.md",
   "优化实施清单.md",
   "优化完成说明.md",
   "验证记录-0.1.0.md",
@@ -83,7 +84,7 @@ for (const report of localDocs)
 await mkdir(join(out, "verification"), { recursive: true });
 for (const file of await readdir("test-results"))
   if (
-    /^(release-stamp\.json|browser-results\.json|extension-network\.json|bark-local-proof\.json|firefox-lint\.json|firefox-install\.log|safe-self-check\.json|.*\.(?:png|jpe?g))$/.test(
+    /^(release-stamp\.json|browser-results\.json|ai-browser-results\.json|unit-results\.json|dependency-audit\.json|performance-0\.3\.0\.json|extension-network\.json|bark-local-proof\.json|firefox-lint\.json|firefox-install\.log|safe-self-check\.json|.*\.(?:png|jpe?g))$/.test(
       file,
     ) &&
     !file.includes("failure") &&
@@ -103,7 +104,7 @@ for (const file of [
     await copyFile(join("test-results", file), join(out, "verification", file));
 await writeFile(
   join(out, "INSTALL.txt"),
-  `Xtrend ${version}\n\nChrome/Edge: unzip the matching package, open the extension manager, enable Developer mode and Load unpacked. Select the folder containing manifest.json. Refresh X.\n\nFirefox: unzip, open about:debugging#/runtime/this-firefox, Load Temporary Add-on, select manifest.json. Permanent installation requires Mozilla signing.\n\nRead VERIFICATION.md for tested and unverified capabilities. Read PRIVACY.md before using Grok or enabling Bark. Bark is optional and sends only the allowed notification metadata to your configured server. Alarms perform local cleanup and deliver already queued notifications; they never refresh X.\n`,
+  `Xtrend ${version}\n\nChrome/Edge: unzip the matching package, open the extension manager, enable Developer mode and Load unpacked. Select the folder containing manifest.json. Refresh X.\n\nTo upgrade an existing unpacked install, replace the files in its original folder with this version, then click Reload and refresh X. Your locally saved settings remain.\n\nFirefox: unzip, open about:debugging#/runtime/this-firefox, Load Temporary Add-on, select manifest.json. Permanent installation requires Mozilla signing.\n\nAI comments: choose X Grok, an OpenAI-compatible service, or Ollama in the AI settings. External services need your own service address, model and any required key. Private Grok generation stops if private mode cannot be confirmed. Nothing is posted automatically.\n\nRead VERIFICATION.md for tested and unverified capabilities. Read PRIVACY.md before using AI or enabling Bark. Bark is optional and sends only the allowed notification metadata to your configured server. Alarms perform local cleanup and deliver already queued notifications; they never refresh X.\n`,
   "utf8",
 );
 console.log(

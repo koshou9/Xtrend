@@ -33,6 +33,7 @@ export interface MonitoringSettings {
   keywords: string[];
   minViews: number;
   minVelocity: number;
+  repeatPercent?: number;
   targets?: {
     kind: "account" | "keyword";
     value: string;

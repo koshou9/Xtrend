@@ -2,6 +2,25 @@
 
 [English](#english)
 
+## 0.3.1 本次更新
+
+- 主设置弹窗和热榜设置收窄；主设置卡片改为直角平铺。
+- AI 评论可选 X Grok、OpenAI 兼容服务和 Ollama，支持数量、模板管理、临时对话及逐条选取草稿。
+- 新发行包位于 `release/0.3.1/`，保留上一版。
+
+## 0.3.0 已有功能
+
+- 修复网页脚本绕过插件按钮触发草稿操作的问题；星图和草稿仅通过扩展内部通道发起。
+- 切换阅读页面时关闭旧窗口并清理临时后台页面；增删 Pro 列不再产生重复身份。
+- 新增手动收藏、标签与备注（最多100条／2MB），可从帖子按钮、热榜底部和弹窗“关于”进入。收藏跨账号共享，仅保存在本机；设置备份不包含收藏，请单独导出。
+- 过滤分区提供规则试用；输入示例回复与作者即可查看当前表单中的规则是否隐藏它，不改变真实页面。
+- 热榜支持正文、作者和发布时间筛选；热榜设置和弹窗排名分区提供三种阅读场景，不自动改变监控或通知。
+- 批量选择窗口增加表格下载，只导出选中内容；表格中的外部文字按普通文字处理。
+- 监控可选择浏览量增长25%、50%或100%后再次提醒，默认关闭；至少间隔5分钟且需要新的准确读数。仍只在浏览时检查，并遵守安静时段和通知限制。
+- 收到一批帖子时集中计算一次排名，减少重复保存；更新开发工具并在交付前自动检查其已知安全问题。
+
+完整的优先级、范围、修复办法和验收方式见[本次优化说明](docs/OPTIMIZATION-0.3.0.md)。更新后请刷新已打开的 X 页面。
+
 ## 目录
 
 - [项目简介](#项目简介)
@@ -14,7 +33,7 @@
 
 ## 项目简介
 
-当前交付版本：**0.2.9**。优化并修复 Thank-You 转发星图与 Grok 回复助手；检查结果见 [验证记录](docs/VERIFICATION.md)。
+当前交付版本：**0.3.1**。优化并修复 Thank-You 转发星图与 Grok 回复助手；检查结果见 [验证记录](docs/VERIFICATION.md)。
 
 把 X 时间线变成本地阅读桌面：流速徽章、本页热榜、图片阅读、Markdown 复制、转发星图、Grok 回复草稿，以及评论屏蔽、色卡和私有监控。
 
@@ -22,7 +41,7 @@
 
 ## 安装
 
-新交付文件放在 `release/0.2.9/`，解压后安装。已有版本的交付文件保留在原处。
+新交付文件放在 `release/0.3.1/`，解压后安装。已有版本的交付文件保留在原处。
 
 ### Chrome / Edge
 
@@ -54,6 +73,7 @@ Bark 在 Firefox 需要 140 或更新版本，并需要单独授权；旧版仍�
 - **图片**：点击推文照片打开。滚轮缩放，拖动平移，双击切换原始比例与适应窗口；`+`、`-`、`0`、`Esc` 可用。长图以 900px 为目标宽度，不超出窗口。
 - **复制**：打开原来的分享菜单，选择“复制为 Markdown”。剪贴板不可用时显示手动复制窗口。只有截断正文时会标注不完整。
 - **星图**：点击推文旁的连线图标。可搜索、筛选，切换人物列表与引用河流；每次操作只加载一页。
+- **AI 评论**：工具栏弹窗 → AI 评论，可选 X Grok、OpenAI 兼容服务或本机 Ollama，设置评论数量（1–30）、新增／修改／删除模板及临时对话。外部服务需要填写地址和模型并授权；OpenAI 兼容服务还需填写密钥，密钥不随备份导出。生成后选择一条评论，可编辑后复制或填入回复框。
 - **Grok**：点击推文旁的星形图标。先检查所选正文与提示词，再主动生成。可复制或填入已打开的对应回复框，不自动发布。
 
 ### 工具栏扩展弹窗
@@ -79,7 +99,7 @@ Bark 在 Firefox 需要 140 或更新版本，并需要单独授权；旧版仍�
 
 打开星图后自动读取一页转发者；切换引用时读取引用列表。人物列表、搜索和分类筛选处理已加载结果。只有点击“下一页”才继续加载。星图只反映 X 公开返回的数据，并不代表完整传播关系。
 
-无需提前手动建立 Grok 对话。检查提示词后点击生成，插件临时打开后台标签页中的 X 原生 Grok 页面，由 X 自己完成发送并将回复带回助手。提示词交给 X/Grok 处理，普通对话可能保留在其历史中。插件不复制登录资料，也不把旧对话或附件带入新请求。临时聊天仍须确认可用后才启用。
+无需提前手动建立 Grok 对话。检查提示词后点击生成，插件临时打开后台标签页中的 X 原生 Grok 页面，由 X 自己完成发送并将回复带回助手。提示词交给 X/Grok 处理，普通对话可能保留在其历史中。插件不复制登录资料，也不把旧对话或附件带入新请求。勾选临时聊天后，插件先确认 X 的私密提示；无法确认会停止发送。
 
 阅读页面不会跳转。取消或生成结束后关闭临时 Grok 标签页；转发／引用标签页保留供后续翻页，读完最后一页、切换账号、离开阅读页面或过期后关闭。重新打开浏览器后如需继续旧缓存的下一页，请先点击刷新。
 
@@ -138,7 +158,7 @@ Bark 默认关闭。启用并授权后，命中通知和手动测试会连接你
 
 ## 安装与环境
 
-使用已打包的扩展不需要安装 Node.js，也不需要运行本项目的开发服务器。安装包位于 `release/0.2.9/`。Chrome、Edge 最低版本为 111，Firefox 最低版本为 128；建议使用当前稳定版。Firefox 安装包采用临时载入方式，重启浏览器后需重新载入；永久安装需要 Mozilla 签名。Firefox 上使用 Bark 需 Firefox 140 或更新版本并单独授权。
+使用已打包的扩展不需要安装 Node.js，也不需要运行本项目的开发服务器。安装包位于 `release/0.3.1/`。Chrome、Edge 最低版本为 111，Firefox 最低版本为 128；建议使用当前稳定版。Firefox 安装包采用临时载入方式，重启浏览器后需重新载入；永久安装需要 Mozilla 签名。Firefox 上使用 Bark 需 Firefox 140 或更新版本并单独授权。
 
 ### 本地开发前提
 
@@ -184,7 +204,7 @@ npm run test:browser
 
 Xtrend is a local reading workspace for X. It adds reading, ranking, filtering, and drafting tools to supported X pages. It runs as a browser extension for Chrome, Edge, and Firefox, and does not require an Xtrend server.
 
-**Current release: 0.2.9.** The packaged builds are in `release/0.2.9/`. See the [verification record](docs/VERIFICATION.md) for the checked flows and remaining limitations.
+**Current release: 0.3.1.** The packaged builds are in `release/0.3.1/`. See the [verification record](docs/VERIFICATION.md) for the checked flows and remaining limitations.
 
 ## What it does
 
@@ -206,7 +226,7 @@ No Node.js setup is needed to install a packaged extension.
 
 ### Chrome and Edge
 
-1. Unzip the matching browser package from `release/0.2.9/`.
+1. Unzip the matching browser package from `release/0.3.1/`.
 2. Open the browser's extensions management page and enable Developer mode.
 3. Choose **Load unpacked** and select the extracted folder containing `manifest.json`.
 4. Refresh open X tabs, then pin Xtrend to the browser toolbar.

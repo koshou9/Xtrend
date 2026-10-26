@@ -110,7 +110,10 @@ export class GraphCache {
       const entries = await this.entries();
       entries.sort((a, b) => a.touchedAt - b.touchedAt);
       while (entries.length && bytes(entries) > GRAPH_BUDGET) entries.shift();
-      await this.storage.set(KEY, entries);
+      if (
+        JSON.stringify(await this.storage.get(KEY)) !== JSON.stringify(entries)
+      )
+        await this.storage.set(KEY, entries);
     });
   }
 }

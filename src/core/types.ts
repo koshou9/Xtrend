@@ -5,6 +5,7 @@ import type {
   MonitoringSettings,
   NotificationSettings,
 } from "./features";
+import type { AiSettings } from "./ai";
 export type Language = "en" | "zh" | "ja";
 export type Count = number | null;
 export interface Author {
@@ -61,6 +62,7 @@ export interface Settings {
   dock: "left" | "right" | null;
   rankingFields: Record<RankingField, boolean>;
   template: string;
+  ai: AiSettings;
   filtering: FilteringSettings;
   appearance: AppearanceSettings;
   monitoring: MonitoringSettings;
@@ -105,6 +107,7 @@ export type Command =
       cursor?: string;
     }
   | { type: "grok"; prompt: string; temporary: boolean }
+  | { type: "ai"; prompt: string }
   | { type: "cancel"; target: string };
 export type Reply =
   | { capabilities: Capabilities }

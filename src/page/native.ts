@@ -9,63 +9,6 @@ const PREFIX = "xtrend-native-";
 type Action = Extract<Command, { type: "graph" | "grok" }>;
 
 // X rejects embedded pages; its own top-level tab builds the current signed requests.
-export class NativeSession {
-  clear() {
-    window.postMessage(
-      { channel: CHANNEL, event: "native-clear" },
-      location.origin,
-    );
-  }
-  async request(command: Action, signal: AbortSignal): Promise<Reply> {
-    if (signal.aborted) throw new DOMException("Aborted", "AbortError");
-    if (command.type === "grok" && command.temporary)
-      throw new Error("temporaryUnavailable");
-    const id = crypto.randomUUID();
-    return new Promise((resolve, reject) => {
-      const finish = (reply?: Reply, error?: Error) => {
-        clearTimeout(timer);
-        window.removeEventListener("message", receive);
-        signal.removeEventListener("abort", abort);
-        if (error) reject(error);
-        else resolve(reply!);
-      };
-      const abort = () => {
-        window.postMessage(
-          { channel: CHANNEL, event: "native-cancel", id },
-          location.origin,
-        );
-        finish(undefined, new DOMException("Aborted", "AbortError"));
-      };
-      const receive = (event: MessageEvent) => {
-        if (
-          event.origin !== location.origin ||
-          event.source !== window ||
-          event.data?.channel !== CHANNEL ||
-          event.data.event !== "native-reply" ||
-          event.data.id !== id
-        )
-          return;
-        const reply = cleanReply(event.data.reply);
-        if (event.data.error)
-          finish(undefined, new Error(String(event.data.error)));
-        else if (
-          reply &&
-          (command.type === "graph" ? "page" in reply : "text" in reply)
-        )
-          finish(reply);
-        else finish(undefined, new Error("unrecognizedResponse"));
-      };
-      const timer = setTimeout(abort, 55_000);
-      window.addEventListener("message", receive);
-      signal.addEventListener("abort", abort, { once: true });
-      window.postMessage(
-        { channel: CHANNEL, event: "native-request", id, command },
-        location.origin,
-      );
-    });
-  }
-}
-
 export function installNativePage() {
   const token = location.hash.match(/^#xtrend-native=([a-f0-9-]{36})$/)?.[1];
   if (
@@ -87,6 +30,7 @@ export function installNativePage() {
   let streaming = false;
   let draft = "";
   let stableAt = 0;
+  let privacyClickedAt = 0;
   const reply = (value?: Reply, error?: string) => {
     if (!pending) return;
     window.postMessage(
@@ -310,7 +254,7 @@ export function installNativePage() {
       typeof command.prompt !== "string" ||
       !command.prompt.trim() ||
       command.prompt.length > 20000 ||
-      command.temporary !== false
+      typeof command.temporary !== "boolean"
     )
       return;
     pending = { id, command };
@@ -339,6 +283,28 @@ export function installNativePage() {
         'main textarea:not([aria-hidden="true"]), [data-testid="GrokDrawer"] textarea',
       );
       if (!input) return;
+      const privateMode =
+        /此次聊天不会出现在你的历史记录中|This (?:chat|conversation) (?:won.t|will not) (?:appear|be saved) (?:in|to) your (?:chat )?history|このチャット.*履歴/.test(
+          document.querySelector("main")?.textContent ?? "",
+        );
+      if (privateMode !== pending.command.temporary) {
+        if (!privacyClickedAt) {
+          const toggle = [
+            ...document.querySelectorAll<HTMLButtonElement>("main button"),
+          ].find((button) =>
+            /^(私密|临时|Private|Temporary(?: chat)?|一時(?:チャット)?)$/i.test(
+              button.getAttribute("aria-label") ??
+                button.textContent?.trim() ??
+                "",
+            ),
+          );
+          if (!toggle) return reply(undefined, "temporaryUnavailable");
+          privacyClickedAt = Date.now();
+          toggle.click();
+        } else if (Date.now() - privacyClickedAt > 5000)
+          reply(undefined, "temporaryUnavailable");
+        return;
+      }
       Object.getOwnPropertyDescriptor(
         HTMLTextAreaElement.prototype,
         "value",

@@ -1,3 +1,5 @@
+import type { LibraryPort } from "../core/research";
+import { remoteLibrary } from "./storage";
 import { browser } from "wxt/browser";
 import type {
   BarkSettings,
@@ -6,9 +8,14 @@ import type {
   PushStatus,
 } from "../core/features";
 import { barkServer, validBark } from "../core/monitor";
+import { aiEndpoint, type AiSettings } from "../core/ai";
 
 export interface HubServices {
+  configureAi?(ai: AiSettings, key: string): Promise<void>;
+  authorizeAi?(ai: AiSettings): Promise<boolean>;
+  checkGrok?(): Promise<boolean>;
   readonly preview?: boolean;
+  readonly library?: LibraryPort;
   events(): Promise<MonitorEvent[]>;
   clearEvents(): Promise<void>;
   authorizeBark(config: BarkSettings): Promise<boolean>;
@@ -65,6 +72,34 @@ async function message<T>(value: unknown): Promise<T> {
   return result.value as T;
 }
 export const hubServices: HubServices = {
+  configureAi: (ai, key) => message({ type: "xtrend:ai-config", ai, key }),
+  authorizeAi(ai) {
+    if (ai.provider === "grok") return Promise.resolve(true);
+    const origin = aiEndpoint(ai[ai.provider].endpoint).origin;
+    return browser.permissions.request({
+      origins: [origin + "/*"],
+      ...(import.meta.env.FIREFOX
+        ? { data_collection: ["websiteContent"] }
+        : {}),
+    } as Parameters<typeof browser.permissions.request>[0]);
+  },
+  async checkGrok() {
+    const [tab] = await browser.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
+    if (tab?.id === undefined) return false;
+    try {
+      return (
+        (await browser.tabs.sendMessage(tab.id, {
+          type: "xtrend:grok-check",
+        })) === true
+      );
+    } catch {
+      return false;
+    }
+  },
+  library: remoteLibrary,
   configureBark: (bark) => message({ type: "xtrend:bark-config", bark }),
   diagnostics: () => message({ type: "xtrend:diagnostics" }),
   flush: () => message({ type: "xtrend:monitor-flush" }),

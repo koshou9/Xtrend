@@ -99,10 +99,10 @@ export async function runVisualChecks({ check, context, output, popupURL }) {
           height: document.body.scrollHeight,
         }));
         assert.ok(
-          intrinsic.width === 440 && intrinsic.height === 560,
+          intrinsic.width === 360 && intrinsic.height === 560,
           JSON.stringify(intrinsic),
         );
-        await popup.setViewportSize({ width: 440, height: 560 });
+        await popup.setViewportSize({ width: 360, height: 560 });
         await popup.locator(".xt-hub-tabs").waitFor();
         const layout = await popup.evaluate(() => ({
           width: document.documentElement.scrollWidth,
@@ -116,16 +116,16 @@ export async function runVisualChecks({ check, context, output, popupURL }) {
             e.getBoundingClientRect().toJSON(),
           ),
         }));
-        assert.equal(layout.width, 440);
+        assert.equal(layout.width, 360);
         assert.equal(layout.height, 560);
         assert.ok(
           layout.hub.x >= 0 &&
-            layout.hub.right <= 440 &&
+            layout.hub.right <= 360 &&
             layout.hub.bottom <= 560,
         );
         assert.ok(layout.mainHeight > 300);
         assert.ok(
-          layout.tabs.every((b) => b.width >= 50 && b.x >= 0 && b.right <= 440),
+          layout.tabs.every((b) => b.width >= 50 && b.x >= 0 && b.right <= 360),
         );
         await popup.screenshot({
           path: join(output, "visual-native-popup-card.png"),

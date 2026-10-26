@@ -1,3 +1,4 @@
+import { researchT } from "./research-i18n";
 import { useEffect, useRef, useState } from "react";
 import {
   Network,
@@ -157,7 +158,9 @@ export function StarMap({ model, tweet }: { model: Workspace; tweet: Tweet }) {
             <button
               key={key}
               className={view === key ? "active" : ""}
-              onClick={() => switchView(key)}
+              onClick={(e) => {
+                if (e.isTrusted) switchView(key);
+              }}
               aria-pressed={view === key}
             >
               <Icon size={15} />
@@ -400,6 +403,7 @@ export function StarMap({ model, tweet }: { model: Workspace; tweet: Tweet }) {
           value={kind}
           disabled={busy}
           onChange={(e) => {
+            if (!e.isTrusted) return;
             const next = e.target.value as typeof kind;
             setKind(next);
             if (!pages[next]) void load(false, next);
@@ -413,7 +417,9 @@ export function StarMap({ model, tweet }: { model: Workspace; tweet: Tweet }) {
           disabled={
             busy || (pages[kind] !== undefined && pages[kind]?.cursor === null)
           }
-          onClick={() => void load()}
+          onClick={(e) => {
+            if (e.isTrusted) void load();
+          }}
         >
           <ArrowDown size={15} />
           {pages[kind] ? t("more") : t("load")}
@@ -421,7 +427,9 @@ export function StarMap({ model, tweet }: { model: Workspace; tweet: Tweet }) {
         <button
           className="xt-icon"
           disabled={busy}
-          onClick={() => void load(true)}
+          onClick={(e) => {
+            if (e.isTrusted) void load(true);
+          }}
           aria-label={t("refresh")}
         >
           <RefreshCw size={16} />
@@ -451,6 +459,9 @@ export function StarMap({ model, tweet }: { model: Workspace; tweet: Tweet }) {
       {error && (
         <div className="xt-notice" role="alert">
           <p>{error}</p>
+          <p className="xt-field-note">
+            {researchT(state.settings.language)("refreshHelp")}
+          </p>
           <a
             className="xt-link"
             href={`${tweet.url}/retweets`}

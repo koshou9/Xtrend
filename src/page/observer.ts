@@ -1,7 +1,6 @@
 import { extractGraph, extractTweets, walk } from "../core/normalize";
 import type { Capabilities, Command, PageSnapshot, Reply } from "../core/types";
 import { boundedText } from "../core/response";
-import { NativeSession } from "./native";
 
 export const CHANNEL = "xtrend:v1";
 const MAX_BODY = 8 * 1024 * 1024;
@@ -62,15 +61,6 @@ function variables(template: Template): Record<string, any> {
   return (
     template.body?.variables ?? parse(u.searchParams.get("variables")) ?? {}
   );
-}
-function setPath(
-  value: Record<string, any>,
-  path: string[],
-  replacement: unknown,
-) {
-  let target = value;
-  for (const key of path.slice(0, -1)) target = target[key];
-  target[path.at(-1)!] = replacement;
 }
 function findPaths(
   value: unknown,
@@ -239,48 +229,23 @@ export async function readGrokResponse(
 export function installObserver() {
   if (!["https://x.com", "https://pro.x.com"].includes(location.origin)) return;
   const originalFetch = window.fetch;
-  const templates = new Map<string, Template>();
   const recent = new Map<string, ReturnType<typeof extractTweets>[number]>();
-  let createConversation: Template | null = null;
-  let grokTemplate: GrokTemplate | null = null;
-  let temporaryVerified = false;
   const controllers = new Map<string, AbortController>();
-  let lastAction = 0;
   let sessionFingerprint = "";
 
-  const native = new NativeSession();
-
   const reset = () => {
-    templates.clear();
     recent.clear();
-    createConversation = null;
-    grokTemplate = null;
-    native.clear();
-    temporaryVerified = false;
     for (const controller of controllers.values()) controller.abort();
   };
-  const prune = () => {
-    const before = Date.now() - 15 * 60_000;
-    for (const [key, template] of templates)
-      if (template.at < before) templates.delete(key);
-    if (grokTemplate && grokTemplate.at < before) {
-      grokTemplate = null;
-      temporaryVerified = false;
-    }
-    if (createConversation && createConversation.at < before)
-      createConversation = null;
-  };
-  const expiryTimer = setInterval(prune, 30_000);
-  window.addEventListener("pagehide", (event) => {
+  window.addEventListener("pagehide", () => {
     reset();
     sessionFingerprint = "";
-    if (!event.persisted) clearInterval(expiryTimer);
   });
   const capabilities = (): Capabilities => ({
     reposts: true,
     quotes: true,
     grok: true,
-    temporary: temporaryVerified && !!grokTemplate?.temporaryPath,
+    temporary: true,
   });
   const emit = (snapshot: PageSnapshot) =>
     window.postMessage(
@@ -294,34 +259,6 @@ export function installObserver() {
     if (fingerprint) sessionFingerprint = fingerprint;
     const url = new URL(template.url),
       op = operation(url);
-    if (["Retweeters", "QuoteTweets"].includes(op)) templates.set(op, template);
-    // Quote searches are learned only when the X page explicitly searched for quotes.
-    if (
-      op === "SearchTimeline" &&
-      /^quoted_tweet_id:\d+(\s|$)/.test(variables(template).rawQuery ?? "")
-    )
-      templates.set(op, template);
-    if (
-      op === "CreateGrokConversation" &&
-      template.method === "POST" &&
-      typeof (data as any)?.data?.create_grok_conversation?.conversation_id ===
-        "string"
-    )
-      createConversation = template;
-    const candidate = classifyGrok(template, createConversation !== null);
-    if (candidate) {
-      grokTemplate = candidate;
-      const paths = findPaths(data, [
-        "temporary",
-        "isTemporary",
-        "is_temporary",
-      ]);
-      temporaryVerified = paths.some((path) => {
-        let v: any = data;
-        for (const k of path) v = v[k];
-        return v === true;
-      });
-    }
     const tweets = extractTweets(data);
     for (const tweet of tweets) recent.set(tweet.id, tweet);
     while (recent.size > 500) recent.delete(recent.keys().next().value!);
@@ -414,7 +351,7 @@ export function installObserver() {
           try {
             safeInspect(template, JSON.parse(text));
           } catch {
-            if (classifyGrok(template, createConversation !== null)) {
+            if (classifyGrok(template)) {
               const records = text.split("\n").flatMap((line) => {
                 try {
                   return [JSON.parse(line.replace(/^data:\s*/, ""))];
@@ -516,127 +453,7 @@ export function installObserver() {
       return { capabilities: capabilities() };
     }
     if (command.type === "cancel") return { capabilities: capabilities() };
-    if (
-      command.type === "grok" &&
-      (typeof command.prompt !== "string" ||
-        typeof command.temporary !== "boolean")
-    )
-      throw new Error("invalidPrompt");
-    if (
-      command.type === "grok" &&
-      command.temporary &&
-      !capabilities().temporary
-    )
-      throw new Error("temporaryUnavailable");
-    const delay = 900 - (Date.now() - lastAction);
-    if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
-    if (signal.aborted) throw new DOMException("Aborted", "AbortError");
-    lastAction = Date.now();
-    let template: Template, body: Record<string, any> | null, url: URL;
-    if (command.type === "graph") {
-      if (
-        !/^\d{1,30}$/.test(command.tweetId) ||
-        (command.cursor?.length ?? 0) > 4096 ||
-        !["quote", "repost"].includes(command.kind)
-      )
-        throw new Error("invalidRequest");
-      const found =
-        templates.get(
-          command.kind === "repost" ? "Retweeters" : "QuoteTweets",
-        ) ??
-        (command.kind === "quote"
-          ? templates.get("SearchTimeline")
-          : undefined);
-      if (found) {
-        template = found;
-        body = structuredClone(template.body);
-        url = new URL(template.url);
-        const vars: Record<string, any> = { ...variables(template), count: 20 };
-        if (operation(url) === "SearchTimeline")
-          vars.rawQuery = `quoted_tweet_id:${command.tweetId}`;
-        else if ("tweet_id" in vars) vars.tweet_id = command.tweetId;
-        else vars.tweetId = command.tweetId;
-        delete vars.cursor;
-        if (command.cursor) vars.cursor = command.cursor;
-        if (body) body.variables = vars;
-        else url.searchParams.set("variables", JSON.stringify(vars));
-      } else {
-        return native.request(command, signal);
-      }
-    } else {
-      if (command.prompt.length > 20000 || !command.prompt.trim())
-        throw new Error("invalidPrompt");
-      if (grokTemplate) {
-        template = grokTemplate;
-        body = structuredClone(template.body);
-        url = new URL(template.url);
-        setPath(body!, grokTemplate.promptPath, command.prompt);
-        if (grokTemplate.temporaryPath)
-          setPath(body!, grokTemplate.temporaryPath, command.temporary);
-        if (grokTemplate.conversationPaths.length) {
-          if (
-            !createConversation ||
-            Date.now() - createConversation.at > 15 * 60_000
-          )
-            throw new Error("refreshConnection");
-          const created = await originalFetch.call(
-            window,
-            createConversation.url,
-            {
-              method: "POST",
-              headers: createConversation.headers,
-              body: JSON.stringify(createConversation.body),
-              credentials: "same-origin",
-              redirect: "error",
-              signal,
-            },
-          );
-          if (!created.ok)
-            throw new Error(
-              created.status === 429 ? "rateLimited" : "accessDenied",
-            );
-          const result = await created.json(),
-            conversationId =
-              result?.data?.create_grok_conversation?.conversation_id;
-          if (typeof conversationId !== "string" || conversationId.length > 200)
-            throw new Error("unrecognizedResponse");
-          for (const path of grokTemplate.conversationPaths)
-            setPath(body!, path, conversationId);
-        }
-      } else {
-        return native.request(command, signal);
-      }
-    }
-    if (Date.now() - template.at > 15 * 60_000)
-      return native.request(command, signal);
-    const response = await originalFetch.call(window, url.href, {
-      method: template.method,
-      headers: template.headers,
-      credentials: "same-origin",
-      redirect: "error",
-      ...(template.method !== "GET" && body
-        ? { body: JSON.stringify(body) }
-        : {}),
-      signal,
-    });
-    if ([400, 403, 404, 410].includes(response.status))
-      return native.request(command, signal);
-    if (!response.ok)
-      throw new Error(
-        response.status === 429
-          ? "rateLimited"
-          : response.status === 401 || response.status === 403
-            ? "accessDenied"
-            : "requestFailed",
-      );
-    if (command.type === "grok")
-      return { text: await readGrokResponse(response, signal) };
-    const text = await boundedText(response, MAX_BODY);
-    if (text.length > MAX_BODY) throw new Error("responseTooLarge");
-    const data = JSON.parse(text);
-    if (Array.isArray(data.errors) && data.errors.length)
-      throw new Error("requestFailed");
-    return { page: extractGraph(data, command.tweetId, command.kind) };
+    throw new Error("invalidRequest");
   };
   window.addEventListener("message", (event) => {
     if (
@@ -651,9 +468,7 @@ export function installObserver() {
       typeof id !== "string" ||
       id.length > 100 ||
       !isObject(command) ||
-      !["capabilities", "reset", "graph", "grok", "cancel"].includes(
-        command.type,
-      )
+      !["capabilities", "reset", "cancel"].includes(command.type)
     )
       return;
     if (command.type === "cancel") {

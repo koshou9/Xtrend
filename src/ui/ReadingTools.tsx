@@ -1,3 +1,5 @@
+import { postsCSV } from "../core/research";
+import { researchT } from "./research-i18n";
 import { useEffect, useState } from "react";
 import type { Workspace } from "../content/model";
 import type { Tweet } from "../core/types";
@@ -119,6 +121,19 @@ export function BatchExport({ model }: { model: Workspace }) {
           {t("selected")}: {selected.length} / 200
         </p>
         <div className="xt-hub-action-row">
+          <button
+            className="xt-secondary"
+            disabled={!selected.length}
+            onClick={() =>
+              downloadText(
+                "xtrend-selected.csv",
+                postsCSV(selected),
+                "text/csv;charset=utf-8",
+              )
+            }
+          >
+            {researchT(state.settings.language)("csv")}
+          </button>
           <button
             className="xt-secondary"
             disabled={!selected.length}

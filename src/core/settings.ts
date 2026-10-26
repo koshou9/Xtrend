@@ -7,6 +7,7 @@ import type {
 } from "./types";
 import { defaultFiltering, validateFiltering } from "./filtering";
 import { validateAppearance } from "./palette";
+import { defaultAi, validateAi } from "./ai";
 import {
   defaultMonitoring,
   validateBark,
@@ -35,6 +36,7 @@ export function defaultSettings(
     position: null,
     columns: ["post", "views", "speed"],
     template: DEFAULT_TEMPLATE,
+    ai: defaultAi(DEFAULT_TEMPLATE),
     rankingLimit: 10,
     hotOnly: false,
     minimumViews: 10000,
@@ -97,6 +99,14 @@ export function validateSettings(input: unknown): Settings {
     columns,
     rankingFields,
     rankingScopes,
+    ai: validateAi(
+      v.ai,
+      typeof v.template === "string" &&
+        v.template.trim() &&
+        v.template.length <= 12000
+        ? v.template
+        : DEFAULT_TEMPLATE,
+    ),
     filtering: validateFiltering(v.filtering),
     appearance: validateAppearance(v.appearance),
     monitoring: validateMonitoring(v.monitoring),
@@ -109,7 +119,7 @@ export function validateSettings(input: unknown): Settings {
               .slice(0, 32)
               .filter(
                 ([key, value]) =>
-                  /^pro-column-\d{1,2}$/.test(key) &&
+                  /^pro-column-\d{1,8}$/.test(key) &&
                   value &&
                   Number.isInteger(value.rankingLimit) &&
                   value.rankingLimit >= 1 &&

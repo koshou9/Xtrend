@@ -1,3 +1,5 @@
+import { ReadingPresets, SavedPosts } from "./ResearchTools";
+import { researchT } from "./research-i18n";
 import { useRef, useState } from "react";
 import {
   BookOpen,
@@ -163,6 +165,7 @@ export function ExtensionHub({
         {tab === "rankings" && (
           <section className="xt-hub-card xt-hub-rankings">
             <h1>{t("rankings")}</h1>
+            <ReadingPresets settings={settings} update={update} />
             <RankingSettings
               settings={settings}
               scope={null}
@@ -186,7 +189,13 @@ export function ExtensionHub({
             services={services}
           />
         )}
-        {tab === "ai" && <TemplateEditor settings={settings} update={update} />}
+        {tab === "ai" && (
+          <TemplateEditor
+            settings={settings}
+            update={update}
+            services={services}
+          />
+        )}
         {tab === "about" && (
           <>
             <section className="xt-hub-card">
@@ -196,6 +205,9 @@ export function ExtensionHub({
               <p>{t("privacyRecords")}</p>
               <p className="xt-hub-small">{t("aboutLimits")}</p>
               <p className="xt-hub-small">Xtrend {version} · MIT</p>
+              <p className="xt-hub-small">
+                {researchT(settings.language)("refreshHelp")}
+              </p>
               <button
                 className="xt-secondary"
                 onClick={() => navigate("settings")}
@@ -203,6 +215,15 @@ export function ExtensionHub({
                 {t("allSettings")}
               </button>
             </section>
+            {services.library && (
+              <section className="xt-hub-card">
+                <h2>{researchT(settings.language)("library")}</h2>
+                <SavedPosts
+                  library={services.library}
+                  language={settings.language}
+                />
+              </section>
+            )}
             <UtilitiesPanel
               settings={settings}
               update={update}

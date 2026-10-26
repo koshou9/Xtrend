@@ -1,3 +1,4 @@
+import { browser } from "wxt/browser";
 import type {
   Command,
   PageTransport,
@@ -11,6 +12,7 @@ export class Bridge implements PageTransport {
   private pending = new Map<
     string,
     {
+      native: boolean;
       resolve: (v: Reply) => void;
       reject: (e: Error) => void;
       dispose: () => void;
@@ -36,7 +38,7 @@ export class Bridge implements PageTransport {
         if (snapshot) onSnapshot(snapshot);
       } else if (value.event === "reply" && typeof value.id === "string") {
         const pending = this.pending.get(value.id);
-        if (pending) {
+        if (pending && !pending.native) {
           pending.dispose();
           const reply = cleanReply(value.reply);
           value.error
@@ -52,6 +54,11 @@ export class Bridge implements PageTransport {
   request(command: Command, signal?: AbortSignal): Promise<Reply> {
     if (signal?.aborted) return Promise.reject(new Error("cancelled"));
     const id = crypto.randomUUID();
+    const native =
+      command.type === "graph" ||
+      command.type === "grok" ||
+      command.type === "ai";
+    if (command.type === "reset") this.clearNative();
     return new Promise((resolve, reject) => {
       const dispose = () => {
         clearTimeout(timer);
@@ -59,15 +66,10 @@ export class Bridge implements PageTransport {
         this.pending.delete(id);
       };
       const abort = () => {
-        window.postMessage(
-          {
-            channel: CHANNEL,
-            event: "command",
-            id: crypto.randomUUID(),
-            command: { type: "cancel", target: id },
-          },
-          location.origin,
-        );
+        if (native)
+          void browser.runtime
+            .sendMessage({ type: "xtrend:native-cancel", id })
+            .catch(() => {});
         dispose();
         reject(new Error("cancelled"));
       };
@@ -75,25 +77,41 @@ export class Bridge implements PageTransport {
         abort();
       }, 65_000);
       signal?.addEventListener("abort", abort, { once: true });
-      this.pending.set(id, { resolve, reject, dispose });
+      this.pending.set(id, { native, resolve, reject, dispose });
+      if (native) {
+        void browser.runtime
+          .sendMessage({ type: "xtrend:native-request", id, command })
+          .then((result) => {
+            if (!this.pending.has(id)) return;
+            dispose();
+            const reply = cleanReply(result?.value);
+            if (!result?.ok || !reply)
+              reject(new Error(result?.error ?? "requestFailed"));
+            else resolve(reply);
+          })
+          .catch((error) => {
+            if (this.pending.has(id)) {
+              dispose();
+              reject(error);
+            }
+          });
+        return;
+      }
       window.postMessage(
         { channel: CHANNEL, event: "command", id, command },
         location.origin,
       );
     });
   }
+  clearNative() {
+    void browser.runtime
+      .sendMessage({ type: "xtrend:native-clear" })
+      .catch(() => {});
+  }
   destroy() {
     window.removeEventListener("message", this.listener);
-    for (const [id, pending] of this.pending) {
-      window.postMessage(
-        {
-          channel: CHANNEL,
-          event: "command",
-          id: crypto.randomUUID(),
-          command: { type: "cancel", target: id },
-        },
-        location.origin,
-      );
+    this.clearNative();
+    for (const pending of this.pending.values()) {
       pending.dispose();
       pending.reject(new Error("cancelled"));
     }

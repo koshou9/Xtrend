@@ -7,11 +7,11 @@ root = Path(__file__).resolve().parents[1]
 version = json.loads((root / 'package.json').read_text())['version']
 release = root / 'release' / version
 archive = release / f'Xtrend-{version}-source.zip'
-excluded = {'node_modules', '.wxt', '.output', '.git', '.codegraph', '.firecrawl', 'test-results', 'release', 'dist-preview', '__pycache__'}
+excluded = {'node_modules', '.wxt', '.output', '.git', '.codegraph', '.firecrawl', 'test-results', 'release', 'dist-preview', '__pycache__', '.code-review-graph', '.DS_Store'}
 with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as output:
     for path in sorted(root.rglob('*')):
         relative = path.relative_to(root)
-        if path.is_file() and not any(part in excluded for part in relative.parts):
+        if path.is_file() and not any(part in excluded for part in relative.parts) and not (path.name == ".env" or (path.name.startswith(".env.") and path.name != ".env.example") or path.name.endswith(".local")):
             output.write(path, Path('Xtrend') / relative)
 
 lines = []

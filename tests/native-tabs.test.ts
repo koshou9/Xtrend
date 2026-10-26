@@ -41,7 +41,7 @@ describe("native X tab boundary", () => {
     mock.data = {};
     vi.clearAllMocks();
   });
-  it("rejects arbitrary sites, malformed commands and unverified temporary mode before opening a tab", async () => {
+  it("rejects arbitrary sites and malformed commands before opening a tab", async () => {
     await expect(
       nativeTabMessage(
         {
@@ -54,7 +54,7 @@ describe("native X tab boundary", () => {
     ).rejects.toThrow("invalidRequest");
     for (const command of [
       { type: "graph", tweetId: "../../logout", kind: "repost" },
-      { type: "grok", prompt: "hello", temporary: true },
+      { type: "grok", prompt: "hello", temporary: "true" },
       { type: "grok", prompt: { text: "hello" }, temporary: false },
     ])
       await expect(

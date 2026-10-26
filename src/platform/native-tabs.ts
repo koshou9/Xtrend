@@ -90,7 +90,7 @@ export async function nativeTabMessage(
     (typeof command.prompt !== "string" ||
       !command.prompt.trim() ||
       command.prompt.length > 20000 ||
-      command.temporary !== false)
+      typeof command.temporary !== "boolean")
   )
     throw new Error("invalidPrompt");
   if (command.type !== "graph" && command.type !== "grok")

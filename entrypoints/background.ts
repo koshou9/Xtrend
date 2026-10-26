@@ -14,10 +14,14 @@ import { cleanGraph } from "../src/core/wire";
 import { Preferences } from "../src/core/preferences";
 import { loadSettings, localStoragePort } from "../src/platform/storage";
 import { barkPermission } from "../src/platform/monitoring";
+import { SavedLibrary } from "../src/core/research";
+import { AI_KEYS, generateAi } from "../src/platform/ai";
+import { aiEndpoint, validateAi } from "../src/core/ai";
 
 export default defineBackground(() => {
   const preferences = new Preferences(localStoragePort),
-    cache = new GraphCache(localStoragePort);
+    cache = new GraphCache(localStoragePort),
+    library = new SavedLibrary(localStoragePort);
   const engine = new MonitorEngine(
     localStoragePort,
     loadSettings,
@@ -69,10 +73,51 @@ export default defineBackground(() => {
       /^https:\/\/(x\.com|pro\.x\.com)\//.test(sender.url ?? "");
     const work = async () => {
       if (!extension && !page) throw new Error("operationFailed");
+      if (
+        value.type === "xtrend:native-request" &&
+        value.command?.type === "ai" &&
+        page
+      )
+        return generateAi((await preferences.read()).ai, value.command.prompt);
+      if (value.type === "xtrend:ai-config" && extension) {
+        const previous = await preferences.read(),
+          ai = validateAi(value.ai, previous.template);
+        if (ai.provider !== "grok") {
+          const origin = aiEndpoint(ai[ai.provider].endpoint).origin;
+          if (!(await barkPermission(origin + "/*")))
+            throw new Error("permissionDenied");
+          const keys = ((await browser.storage.local.get(AI_KEYS))[AI_KEYS] ??
+            {}) as Record<string, string>;
+          if (
+            ai.provider === "openai" &&
+            !keys[origin] &&
+            !(typeof value.key === "string" && value.key.trim())
+          )
+            throw new Error("missingAiKey");
+          if (
+            ai.provider === "openai" &&
+            typeof value.key === "string" &&
+            value.key.trim()
+          ) {
+            if (value.key.length > 4096 || /[\r\n]/.test(value.key))
+              throw new Error("invalidAiConfig");
+            await browser.storage.local.set({
+              [AI_KEYS]: { ...keys, [origin]: value.key.trim() },
+            });
+          }
+        }
+        return preferences.update({ ai });
+      }
       if (value.type.startsWith("xtrend:native-") && page)
         return nativeTabMessage(value, sender);
-      if (value.type === "xtrend:settings-update")
+      if (value.type === "xtrend:saved-list") return library.list();
+      if (value.type === "xtrend:saved-save") return library.save(value.entry);
+      if (value.type === "xtrend:saved-remove") return library.remove(value.id);
+      if (value.type === "xtrend:settings-update") {
+        if (!extension && value.patch && "ai" in value.patch)
+          throw new Error("operationFailed");
         return preferences.update(value.patch);
+      }
       if (value.type === "xtrend:bark-config") {
         if (!extension || !value.bark || typeof value.bark !== "object")
           throw new Error("operationFailed");
@@ -181,7 +226,10 @@ export default defineBackground(() => {
               "permissionDenied",
               "settingsTooLarge",
               "invalidRequest",
+              "libraryFull",
               "invalidPrompt",
+              "invalidAiConfig",
+              "missingAiKey",
               "temporaryUnavailable",
               "refreshConnection",
               "rateLimited",

@@ -4,6 +4,7 @@ import type { Settings } from "../core/types";
 import type { StoragePort } from "../core/cache";
 import { difference } from "../core/preferences";
 import type { GraphPage } from "../core/types";
+import { LIBRARY_KEY, type LibraryPort } from "../core/research";
 
 export const localStoragePort: StoragePort = {
   async get(key) {
@@ -52,6 +53,20 @@ export const remoteGraphCache = {
   ) =>
     request<void>({ type: "xtrend:cache-put", account, tweetId, kind, page }),
   clear: () => request<void>({ type: "xtrend:cache-clear" }),
+};
+export const remoteLibrary: LibraryPort = {
+  list: () => request({ type: "xtrend:saved-list" }),
+  save: (entry) => request({ type: "xtrend:saved-save", entry }),
+  remove: (id) => request({ type: "xtrend:saved-remove", id }),
+  watch(changed) {
+    const listener: Parameters<
+      typeof browser.storage.onChanged.addListener
+    >[0] = (changes, area) => {
+      if (area === "local" && changes[LIBRARY_KEY]) changed();
+    };
+    browser.storage.onChanged.addListener(listener);
+    return () => browser.storage.onChanged.removeListener(listener);
+  },
 };
 export function watchSettings(fn: (settings: Settings) => void) {
   const listener: Parameters<

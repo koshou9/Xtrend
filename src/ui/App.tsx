@@ -1,3 +1,4 @@
+import { SavedDialog, ReadingPresets } from "./ResearchTools";
 import { useEffect } from "react";
 import type { Workspace } from "../content/model";
 import { translator } from "./i18n";
@@ -66,6 +67,10 @@ export function App({
             openAll={() => model.open({ type: "settings" })}
           />
           <ColumnSettings model={model} />
+          <ReadingPresets
+            settings={state.settings}
+            update={(patch) => model.update(patch)}
+          />
         </Dialog>
       )}
       {modal?.type === "settings" && (
@@ -90,6 +95,9 @@ export function App({
       )}
       {modal?.type === "image" && (
         <ImageReader model={model} photos={modal.photos} index={modal.index} />
+      )}
+      {modal?.type === "saved" && (
+        <SavedDialog model={model} tweet={modal.tweet} />
       )}
       {modal?.type === "filtered" && <FilteredPosts model={model} />}
       {modal?.type === "batch" && <BatchExport model={model} />}

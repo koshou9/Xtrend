@@ -14,13 +14,15 @@ import { pageScope } from "../core/ranking";
 import { validateSettings } from "../core/settings";
 import { mergeRelations } from "../core/cache";
 import type { StoragePort } from "../core/cache";
-import { monitorHit } from "../core/monitor";
+import { monitorHit, repeatHit } from "../core/monitor";
 import type { MonitorHit } from "../core/features";
+import { SavedLibrary, type LibraryPort } from "../core/research";
 export type Modal =
   | { type: "settings" | "ranking-settings" | "filtered" | "batch" }
   | { type: "star" | "grok" | "trend"; tweet: Tweet }
   | { type: "image"; photos: string[]; index: number }
   | { type: "copy"; text: string }
+  | { type: "saved"; tweet?: Tweet }
   | null;
 export interface ModelState {
   settings: Settings;
@@ -45,12 +47,13 @@ export class Workspace {
   private listeners = new Set<() => void>();
   readonly samples = new Samples();
   readonly cache: Pick<GraphCache, "get" | "put" | "clear">;
+  readonly library: LibraryPort;
   transport!: PageTransport;
   private state: ModelState;
   private timer: ReturnType<typeof setInterval>;
   private saveQueue = Promise.resolve();
   private pendingWrites = 0;
-  private reported = new Set<string>();
+  private reported = new Map<string, MonitorHit>();
   private reporting = new Map<string, number>();
   private monitorConfig = "";
   private monitorGeneration = 0;
@@ -70,10 +73,12 @@ export class Workspace {
       fill: (tweet: Tweet, text: string) => boolean;
       monitor?: (hit: MonitorHit) => Promise<void>;
       cache?: Pick<GraphCache, "get" | "put" | "clear">;
+      library?: LibraryPort;
     },
     account = "anonymous",
   ) {
     this.cache = actions.cache ?? new GraphCache(storage);
+    this.library = actions.library ?? new SavedLibrary(storage);
     this.state = {
       settings,
       ranked: [],
@@ -205,7 +210,7 @@ export class Workspace {
     )
       this.emit({ capabilities: snapshot.capabilities });
     for (const tweet of snapshot.tweets.slice(0, 1000))
-      this.upsert(tweet, false);
+      this.upsert(tweet, false, true);
     if (
       snapshot.graph &&
       /^\d+$/.test(snapshot.graph.id) &&
@@ -226,7 +231,7 @@ export class Workspace {
     this.recalculate();
     this.observeMonitor();
   }
-  upsert(tweet: Tweet, seen = true) {
+  upsert(tweet: Tweet, seen = true, batch = false) {
     if (
       !tweet ||
       !/^\d{1,30}$/.test(tweet.id) ||
@@ -305,7 +310,7 @@ export class Workspace {
       this.visible.add(tweet.id);
       this.recalculate();
       this.observeMonitor();
-    } else if (changed && this.visible.has(tweet.id)) {
+    } else if (!batch && changed && this.visible.has(tweet.id)) {
       this.recalculate();
       this.observeMonitor();
     }
@@ -328,7 +333,7 @@ export class Workspace {
     }
     if (!this.state.settings.monitoring.enabled) return;
     for (const id of this.visible) {
-      if (this.reported.has(id) || this.reporting.has(id)) continue;
+      if (this.reporting.has(id)) continue;
       const columns = this.tweetColumns.get(id);
       if (
         columns?.size &&
@@ -346,13 +351,23 @@ export class Workspace {
             )
           : null;
       if (!hit) continue;
+      const previous = this.reported.get(id);
+      if (
+        previous &&
+        !repeatHit(
+          previous,
+          hit,
+          this.state.settings.monitoring.repeatPercent ?? 0,
+        )
+      )
+        continue;
       const generation = this.monitorGeneration;
       this.reporting.set(id, generation);
       void this.actions
         .monitor(hit)
         .then(() => {
           if (generation === this.monitorGeneration && this.raw.has(id))
-            this.reported.add(id);
+            this.reported.set(id, hit);
         })
         .catch(() => {
           if (
@@ -448,6 +463,7 @@ export class Workspace {
     this.dataRevision++;
     this.monitorGeneration++;
     this.emit({
+      modal: null,
       ranked: [],
       selectedTweetId: null,
       filtered: [],

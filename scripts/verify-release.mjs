@@ -14,6 +14,7 @@ const run = (command, args) =>
 await mkdir("test-results", { recursive: true });
 await run("npm", ["run", "format:check"]);
 await run("npm", ["run", "check"]);
+await run("npm", ["run", "audit"]);
 await run("npm", [
   "test",
   "--",
@@ -80,15 +81,24 @@ try {
     ),
     browsers = JSON.parse(
       await readFile("test-results/browser-results.json", "utf8"),
+    ),
+    ai = JSON.parse(
+      await readFile("test-results/ai-browser-results.json", "utf8"),
     );
-  if (!units.success || browsers.results.some((r) => r.status !== "passed"))
+  if (
+    !units.success ||
+    browsers.results.some((r) => r.status !== "passed") ||
+    !Array.isArray(ai.results) ||
+    !ai.results.length
+  )
     throw new Error("Incomplete test results");
   const stamp = {
     checkedAt: new Date().toISOString(),
     version: JSON.parse(await readFile("package.json", "utf8")).version,
     implementationHash: initial,
     unitChecks: units.numPassedTests,
-    browserChecks: browsers.results.length,
+    browserChecks: browsers.results.length + ai.results.length,
+    aiBrowserChecks: ai.results.length,
     firefoxWarnings: result.summary.warnings,
     authenticatedXVerified: false,
     phoneDeliveryVerified: false,

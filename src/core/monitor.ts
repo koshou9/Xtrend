@@ -67,6 +67,7 @@ export function defaultMonitoring(): MonitoringSettings {
     keywords: [],
     minViews: 10000,
     minVelocity: 0,
+    repeatPercent: 0,
   };
 }
 export function parseTargets(
@@ -171,6 +172,9 @@ export function validateMonitoring(value: unknown): MonitoringSettings {
     accounts,
     keywords,
     targets,
+    repeatPercent: [25, 50, 100].includes(v.repeatPercent ?? 0)
+      ? v.repeatPercent
+      : 0,
     minViews:
       Number.isSafeInteger(v.minViews) && v.minViews! >= 0
         ? v.minViews!
@@ -302,6 +306,22 @@ export function eligibleHit(
             : settings.keywords.includes(value)) &&
             meets(settings.minViews, settings.minVelocity);
     })
+  );
+}
+export function repeatHit(
+  previous: MonitorHit,
+  incoming: MonitorHit,
+  percent: number,
+  now = Date.now(),
+): boolean {
+  return (
+    percent > 0 &&
+    previous.views !== null &&
+    incoming.views !== null &&
+    incoming.views > previous.views &&
+    incoming.views >= previous.views * (1 + percent / 100) &&
+    now - previous.at >= 5 * 60000 &&
+    (incoming.observedAt ?? incoming.at) > (previous.observedAt ?? previous.at)
   );
 }
 export class MonitorEngine {
@@ -438,7 +458,16 @@ export class MonitorEngine {
       const entries = await this.read(),
         key = `${hit.account}:${hit.id}`,
         existing = entries.find((e) => e.key === key);
-      if (existing) return existing;
+      if (
+        existing &&
+        !repeatHit(
+          existing,
+          hit,
+          settings.monitoring.repeatPercent ?? 0,
+          this.now(),
+        )
+      )
+        return existing;
       const entry: MonitorEvent = {
         ...hit,
         at: this.now(),
@@ -448,7 +477,10 @@ export class MonitorEngine {
         dueAt: this.now() + settings.notifications.mergeMinutes * 60000,
       };
       // Persist before sending: worker interruption cannot cause a duplicate automatic push.
-      const next = [entry, ...entries].slice(0, 200);
+      const next = [entry, ...entries.filter((e) => e.key !== key)].slice(
+        0,
+        200,
+      );
       await this.writeEntries(next);
       if (settings.bark.enabled) {
         entry.pushStatus = quietNow(settings.notifications, this.now())

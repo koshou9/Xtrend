@@ -16,6 +16,7 @@ import {
   saveSettings,
   watchSettings,
   remoteGraphCache,
+  remoteLibrary,
 } from "../src/platform/storage";
 import { reportMonitor } from "../src/platform/monitoring";
 
@@ -59,11 +60,17 @@ export default defineContentScript({
         fill: fillReply,
         monitor: reportMonitor,
         cache: remoteGraphCache,
+        library: remoteLibrary,
       },
       currentAccount(),
     );
     const bridge = new Bridge((snapshot) => model.ingest(snapshot));
     model.transport = bridge;
+    const checkGrok = (message: any) =>
+      message?.type === "xtrend:grok-check"
+        ? Promise.resolve(model.snapshot().capabilities.grok)
+        : undefined;
+    browser.runtime.onMessage.addListener(checkGrok);
     let healthTimer: ReturnType<typeof setTimeout> | undefined;
     const reportHealth = () => {
       if (healthTimer) return;
@@ -99,6 +106,7 @@ export default defineContentScript({
         void bridge.request({ type: "reset" }).catch(() => {});
       if (next !== route || nextTab !== tab) {
         model.reset();
+        void bridge.request({ type: "reset" }).catch(() => {});
         bookmark = null;
         route = next;
         tab = nextTab;
@@ -106,6 +114,7 @@ export default defineContentScript({
     }, 600);
     ctx.onInvalidated(() => {
       clearInterval(routeTimer);
+      browser.runtime.onMessage.removeListener(checkGrok);
       clearTimeout(healthTimer);
       stopHealth();
       unwatch();

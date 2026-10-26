@@ -1,3 +1,6 @@
+import { ReadingSearch } from "./ResearchTools";
+import { searchPosts, type ReadingQuery } from "../core/research";
+import { researchT } from "./research-i18n";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import {
@@ -163,6 +166,15 @@ export function Rankings({
   const state = useWorkspace(model),
     t = translator(state.settings.language);
   const extra = enhanceT(state.settings.language);
+  const [query, setQuery] = useState<ReadingQuery>({
+    text: "",
+    author: "",
+    since: "",
+  });
+  useEffect(
+    () => setQuery({ text: "", author: "", since: "" }),
+    [state.account, state.scope],
+  );
   const [collapsed, setCollapsed] = useState(false),
     [peek, setPeek] = useState(false),
     [dragColumn, setDragColumn] = useState<Column | null>(null),
@@ -344,7 +356,10 @@ export function Rankings({
     void model.update({ columns }).catch(() => model.notify(t("saveFailed")));
   };
   const fields = state.settings.rankingFields,
-    rows = selectRankings(state.ranked, model.rankingSettings());
+    rows = selectRankings(
+      searchPosts(state.ranked, query),
+      model.rankingSettings(),
+    );
   const columns = state.settings.columns.filter((c) =>
     c === "post"
       ? fields.rank || fields.tier || fields.username || fields.preview
@@ -518,6 +533,11 @@ export function Rankings({
           </span>
         </div>
         <p className="xt-metric-help">{demo ? t("demo") : t("metricHelp")}</p>
+        <ReadingSearch
+          language={state.settings.language}
+          query={query}
+          change={setQuery}
+        />
         {state.columns.length > 0 && (
           <label className="xt-column-select">
             {extra("columns")}
@@ -695,6 +715,12 @@ export function Rankings({
           ))}
         </div>
         <footer className="xt-panel-footer">
+          <button
+            className="xt-text-button"
+            onClick={() => model.open({ type: "saved" })}
+          >
+            {researchT(state.settings.language)("library")}
+          </button>
           <button
             className="xt-text-button"
             onClick={() => model.open({ type: "filtered" })}

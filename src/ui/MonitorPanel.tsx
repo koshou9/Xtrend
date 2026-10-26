@@ -1,3 +1,4 @@
+import { researchT } from "./research-i18n";
 import { useEffect, useState } from "react";
 import { ArrowUpRight, Bell, RefreshCw, Send, Trash2 } from "lucide-react";
 import type { MonitorEvent } from "../core/features";
@@ -282,6 +283,30 @@ export function MonitorPanel({
             {t("saveWatch")}
           </button>
         </form>
+      </section>
+      <section className="xt-hub-card">
+        <label>
+          {researchT(settings.language)("repeat")}
+          <select
+            aria-label={researchT(settings.language)("repeat")}
+            value={m.repeatPercent ?? 0}
+            onChange={(e) =>
+              void update({
+                monitoring: { ...m, repeatPercent: Number(e.target.value) },
+              }).catch(() => {})
+            }
+          >
+            <option value={0}>{researchT(settings.language)("off")}</option>
+            {[25, 50, 100].map((p) => (
+              <option key={p} value={p}>
+                {p}%
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="xt-hub-small">
+          {researchT(settings.language)("repeatHelp")}
+        </p>
       </section>
       <section className="xt-hub-card">
         <h2>

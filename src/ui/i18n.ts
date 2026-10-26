@@ -124,7 +124,7 @@ const en = {
   emptyQuotes: "No quotes loaded yet.",
   learned: "Ready to read X",
   learnGraph:
-    "Open this post’s repost or quote list in X once, then return. Xtrend learns the current page connection instead of guessing an endpoint.",
+    "Refresh the map to open a fresh native X list in a temporary background tab.",
   openReposts: "Open reposts in X",
   openQuotes: "Open quotes in X",
   openOriginal: "Open original",
@@ -137,9 +137,9 @@ const en = {
   regenerate: "Generate again",
   temporary: "Temporary chat",
   temporaryUnavailable:
-    "Temporary chat has not been verified. Generate a normal draft below; X/Grok may retain the conversation.",
+    "Grok private mode could not be confirmed. No prompt was sent. Open Grok and check its Private control, then retry.",
   learnGrok:
-    "In X’s Grok page, start a new text-only conversation once. Xtrend needs to observe a supported first-message request in this tab. Existing conversations are never reused.",
+    "Refresh X and check your login, then generate a draft. Xtrend opens a fresh native Grok page when you click Generate.",
   grokPrivacy:
     "Generating sends this prompt to X. X may retain ordinary chats. Xtrend does not save your prompt or draft.",
   openGrok: "Open Grok in this tab",
@@ -168,7 +168,7 @@ const en = {
   requestFailed:
     "X could not complete this request. Your reading position is unchanged.",
   refreshConnection:
-    "This connection expired. Open the corresponding list or a new Grok conversation in X again.",
+    "The connection expired. Refresh the map, or refresh X before retrying the draft.",
   cancelled: "Cancelled",
   slowDown: "Please wait a moment before another request.",
   invalidPrompt: "Enter a prompt of up to 20,000 characters.",
@@ -311,8 +311,7 @@ const zh: Record<Key, string> = {
   emptyFilter: "没有匹配的人物。",
   emptyQuotes: "还没有加载引用。",
   learned: "已准备读取 X",
-  learnGraph:
-    "先在 X 中打开一次这条推文的转发或引用列表，再返回。Xtrend 会读取当前页面提供的连接方式，不猜测地址。",
+  learnGraph: "请点击刷新，Xtrend 会在临时后台页面重新打开 X 原生列表。",
   openReposts: "在 X 查看转发",
   openQuotes: "在 X 查看引用",
   openOriginal: "打开原文",
@@ -325,9 +324,9 @@ const zh: Record<Key, string> = {
   regenerate: "重新生成",
   temporary: "临时聊天",
   temporaryUnavailable:
-    "尚未确认临时聊天能力。下方可生成普通草稿，X/Grok 可能保留对话。",
+    "无法确认 Grok 已进入私密模式，未发送提示词。请打开 Grok 检查私密入口后重试。",
   learnGrok:
-    "在此标签页的 X Grok 页面新建一次纯文字对话。Xtrend 需要观察支持的首条消息请求，不会复用已有对话。",
+    "请刷新 X 并确认已登录，再点击生成草稿。Xtrend 会为本次操作打开新的原生 Grok 页面。",
   grokPrivacy:
     "生成时会将此提示词发送给 X，普通对话可能被 X 保留。Xtrend 不保存提示词或草稿。",
   openGrok: "在当前标签页打开 Grok",
@@ -352,7 +351,8 @@ const zh: Record<Key, string> = {
   accessDenied: "X 拒绝访问，请检查登录状态或账号权限。",
   rateLimited: "X 要求降低请求频率，请稍后再试。",
   requestFailed: "X 未能完成请求，阅读位置保持不变。",
-  refreshConnection: "连接已过期，请在 X 重新打开相应列表或新建 Grok 对话。",
+  refreshConnection:
+    "连接已过期。星图请点击刷新；生成草稿前请刷新 X 页面后重试。",
   cancelled: "已取消",
   slowDown: "请稍等片刻再发起请求。",
   invalidPrompt: "请输入不超过 20,000 字符的提示词。",
@@ -494,7 +494,7 @@ const ja: Record<Key, string> = {
   emptyQuotes: "引用はまだ取得していません。",
   learned: "X を読み取る準備完了",
   learnGraph:
-    "X でこのポストのリポストまたは引用一覧を一度開いて戻ってください。現在のページの接続方法を使います。",
+    "更新ボタンで、一時的なバックグラウンドタブに X の一覧を開き直します。",
   openReposts: "X でリポストを見る",
   openQuotes: "X で引用を見る",
   openOriginal: "元のポストを開く",
@@ -507,9 +507,9 @@ const ja: Record<Key, string> = {
   regenerate: "もう一度生成",
   temporary: "一時チャット",
   temporaryUnavailable:
-    "一時チャットは未確認です。通常の下書きは生成できますが、X/Grok に会話が保存される場合があります。",
+    "Grok のプライベートモードを確認できず、送信を停止しました。Grok の設定を確認して再試行してください。",
   learnGrok:
-    "このタブの X Grok で、テキストのみの新しい会話を一度始めてください。対応する最初のリクエストを確認します。既存の会話は再利用しません。",
+    "X を再読み込みしてログインを確認してください。生成を押すと新しい Grok ページを開きます。",
   grokPrivacy:
     "生成時、このプロンプトを X に送ります。通常の会話は X に保存される場合があります。Xtrend は保存しません。",
   openGrok: "このタブで Grok を開く",
@@ -537,7 +537,7 @@ const ja: Record<Key, string> = {
   rateLimited: "X の制限に達しました。しばらくしてから再試行してください。",
   requestFailed: "X へのリクエストが失敗しました。閲覧位置は変わりません。",
   refreshConnection:
-    "接続の期限が切れました。X で一覧か新しい Grok 会話を開き直してください。",
+    "接続の期限が切れました。星図を更新するか、X を再読み込みして再試行してください。",
   cancelled: "キャンセルしました",
   slowDown: "次の操作まで少しお待ちください。",
   invalidPrompt: "20,000文字以内のプロンプトを入力してください。",

@@ -358,12 +358,13 @@ export async function runFeatureChecks({
     async () => {
       await tab("AI replies");
       await popup
-        .getByLabel("Reply template", { exact: true })
+        .getByLabel("Template instructions", { exact: true })
         .fill("Reply in {{language}} to {{text}}");
       await popup
-        .getByRole("button", { name: "Save template", exact: true })
+        .getByRole("button", { name: "Save", exact: true })
+        .last()
         .click();
-      await saved();
+      await popup.getByText("Saved on this device", { exact: true }).waitFor();
       await tab("About");
       await popup
         .getByRole("heading", {

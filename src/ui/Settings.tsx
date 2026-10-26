@@ -46,7 +46,6 @@ export function SettingsView({
     "images",
     "language",
     "theme",
-    "template",
     "position",
   ];
   const patch = Object.fromEntries(
@@ -222,18 +221,6 @@ export function SettingsView({
               ))}
             </select>
           </label>
-        </section>
-        <section className="xt-setting-section">
-          <h3>{t("template")}</h3>
-          <p>{t("templateHint")}</p>
-          <textarea
-            aria-label={t("template")}
-            value={draft.template}
-            onChange={(e) => change("template", e.target.value)}
-            maxLength={12000}
-            rows={5}
-            required
-          />
         </section>
         <div className="xt-settings-actions">
           <button

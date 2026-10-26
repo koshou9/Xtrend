@@ -1,3 +1,4 @@
+import { RulePreview } from "./ResearchTools";
 import { useRef, useState } from "react";
 import { Check, Download, Edit2, Plus, Trash2, Upload } from "lucide-react";
 import type { Settings } from "../core/types";
@@ -425,6 +426,21 @@ export function FilterPanel({ settings, update, notify }: PanelProps) {
       </details>
       <p className="xt-hub-small">{t("ruleCaution")}</p>
       <p className="xt-hub-small">{t("ruleCheck")}</p>
+      <RulePreview
+        settings={{
+          ...settings,
+          filtering: {
+            ...f,
+            whitelist: parseAccounts(white),
+            blacklist: parseAccounts(black),
+          },
+        }}
+        label={label}
+        terms={terms}
+        match={match}
+        severity={severity}
+        editing={editing}
+      />
       <button
         className="xt-text-button xt-reset-filter"
         onClick={() =>

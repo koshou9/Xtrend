@@ -1,3 +1,4 @@
+import { runResearchChecks } from "./research-checks.mjs";
 import { chromium, firefox } from "playwright";
 import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -712,7 +713,7 @@ try {
     },
   );
   await check(
-    "Grok streams a draft through an observed same-origin connection; temporary mode stays disabled",
+    "Grok drafts stay on the internal extension channel even after native page activity; temporary mode is available",
     async () => {
       await page.locator("#native-grok").click();
       await page.waitForTimeout(1100);
@@ -725,7 +726,7 @@ try {
         await workspace
           .getByRole("switch", { name: "Temporary chat" })
           .isEnabled(),
-        false,
+        true,
       );
       await workspace
         .getByRole("button", { name: "Generate draft", exact: true })
@@ -735,8 +736,7 @@ try {
         () =>
           document
             .querySelector("#xtrend-workspace")
-            .shadowRoot.querySelector(".xt-draft")?.value ===
-          "Synthetic draft.",
+            .shadowRoot.querySelector(".xt-draft")?.value === "Native draft.",
       );
       await workspace
         .getByRole("button", { name: "Fill reply box", exact: true })
@@ -892,6 +892,7 @@ try {
         ),
       );
       assert.ok(!JSON.stringify(storage).includes("Synthetic draft."));
+      assert.ok(!JSON.stringify(storage).includes("Native draft."));
       await popup.screenshot({ path: join(output, "popup.png") });
       await popup.close();
       activePage = page;
@@ -938,6 +939,12 @@ try {
       await writeFile(join(output, "hub-failure.html"), await popup.content());
     }
     throw error;
+  });
+  await runResearchChecks({
+    check,
+    context,
+    output,
+    popupURL: `chrome-extension://${extensionId}/popup.html`,
   });
   await runImprovementChecks({
     check,

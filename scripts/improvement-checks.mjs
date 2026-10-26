@@ -83,22 +83,25 @@ export async function runImprovementChecks({
     },
   );
   await check(
-    "templates follow edits in general settings and unsaved section changes require an explicit choice",
+    "AI template edits persist and unsaved section changes require an explicit choice",
     async () => {
+      await tab("AI replies");
       await popup
-        .getByLabel("Reply template", { exact: true })
+        .getByLabel("Template instructions", { exact: true })
         .fill("Current template {{text}}");
       await popup
-        .getByRole("button", { name: "Save settings", exact: true })
+        .getByRole("button", { name: "Save", exact: true })
+        .last()
         .click();
       await saved();
-      await tab("AI replies");
       assert.equal(
-        await popup.getByLabel("Reply template", { exact: true }).inputValue(),
+        await popup
+          .getByLabel("Template instructions", { exact: true })
+          .inputValue(),
         "Current template {{text}}",
       );
       await popup
-        .getByLabel("Reply template", { exact: true })
+        .getByLabel("Template instructions", { exact: true })
         .fill("Unsaved edit");
       await tab("About");
       await popup
@@ -108,7 +111,9 @@ export async function runImprovementChecks({
         .getByRole("button", { name: "Keep editing", exact: true })
         .click();
       assert.equal(
-        await popup.getByLabel("Reply template", { exact: true }).inputValue(),
+        await popup
+          .getByLabel("Template instructions", { exact: true })
+          .inputValue(),
         "Unsaved edit",
       );
       await tab("About");
@@ -123,7 +128,9 @@ export async function runImprovementChecks({
         .waitFor();
       await tab("AI replies");
       assert.equal(
-        await popup.getByLabel("Reply template", { exact: true }).inputValue(),
+        await popup
+          .getByLabel("Template instructions", { exact: true })
+          .inputValue(),
         "Current template {{text}}",
       );
     },

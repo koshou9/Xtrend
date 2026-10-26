@@ -1,3 +1,5 @@
+import { BookmarkPlus } from "lucide-react";
+import { researchT } from "../ui/research-i18n";
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
 import { Network, Sparkles, Copy, TrendingUp } from "lucide-react";
@@ -76,7 +78,7 @@ function Inline({ model, id }: { model: Workspace; id: string }) {
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          model.open({ type: "star", tweet });
+          if (e.isTrusted) model.open({ type: "star", tweet });
         }}
       >
         <Network size={15} />
@@ -88,10 +90,21 @@ function Inline({ model, id }: { model: Workspace; id: string }) {
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          model.open({ type: "grok", tweet });
+          if (e.isTrusted) model.open({ type: "grok", tweet });
         }}
       >
         <Sparkles size={15} />
+      </button>
+      <button
+        className="xt-icon"
+        aria-label={researchT(state.settings.language)("savePost")}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.isTrusted) model.open({ type: "saved", tweet });
+        }}
+      >
+        <BookmarkPlus size={15} />
       </button>
     </div>
   );
@@ -117,14 +130,14 @@ export function mountWorkspace(model: Workspace) {
   let filterVersion = "";
   const details = new Map<string, boolean>();
   const columns = new Map<Element, string>();
+  let nextColumn = 0;
   const articleColumn = (article: Element) => {
     if (location.hostname !== "pro.x.com") return null;
     let node = article.parentElement;
     while (node && node !== document.body) {
       const style = getComputedStyle(node);
       if (/(auto|scroll)/.test(style.overflowY) && node.clientHeight > 0) {
-        if (!columns.has(node))
-          columns.set(node, `pro-column-${columns.size + 1}`);
+        if (!columns.has(node)) columns.set(node, `pro-column-${++nextColumn}`);
         return columns.get(node)!;
       }
       node = node.parentElement;
